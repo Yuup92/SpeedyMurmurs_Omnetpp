@@ -22,6 +22,7 @@ void Neighbours::handle_send_coordinates(BasicMessage *msg) {
     for(int i = 0; i < numLinkedNodes; i++) {
         if(msg->getNodeId() == linkedNodes[i].get_connected_node_id()) {
             linkedNodes[i].add_coordinates(msg);
+            linkedNodes[i].receivedConnectedCoordinates = true;
         }
     }
 
@@ -44,15 +45,21 @@ int Neighbours::get_node_id(void) {
 }
 
 
-void Neighbours::send_coordinates_direct_neighbours(MessageBuffer *msgBuf) {
+int Neighbours::send_coordinates_direct_neighbours(MessageBuffer *msgBuf) {
+
+    int sentMsgs = 0;
 
     for(int i = 0; i < numLinkedNodes; i++) {
-        int outgate = linkedNodes[i].get_connecting_edge();
-        BasicMessage *m = Neighbours::send_coordinates(nodeId, neighbourhoodIndex, lengthNeighbourhoodCor, &neighbourhoodCoordinates[0]);
-        BufferedMessage * bufMsg = new BufferedMessage(m, outgate, 1);
-        msgBuf->addMessage(bufMsg);
+        if(not linkedNodes[i].sentConnectedCoordinates) {
+            int outgate = linkedNodes[i].get_connecting_edge();
+            BasicMessage *m = Neighbours::send_coordinates(nodeId, neighbourhoodIndex, lengthNeighbourhoodCor, &neighbourhoodCoordinates[0]);
+            BufferedMessage * bufMsg = new BufferedMessage(m, outgate, 1);
+            msgBuf->addMessage(bufMsg);
+            linkedNodes[i].sentConnectedCoordinates = true;
+            sentMsgs++;
+        }
     }
-
+    return sentMsgs;
 }
 
 // Maybe add a bool to reset out_gate_list or something

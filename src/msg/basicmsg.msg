@@ -30,6 +30,7 @@ message BasicMessage
     int spanningTreeIndex;
     int spanningTreeId;
     int spanningTreeIndexList;
+    int nextTreeIndex;
     int weightEdgeSpanningTree;
     
     int levelNode;
@@ -38,9 +39,9 @@ message BasicMessage
     int bestWeight;
     
     int indexChildrenIds;
-    int listChildrenIds[20];
+    int listChildrenIds[1000];
     int lengthVectorCordinates;
-    int vectorCordinates[150];
+    int vectorCordinates[1000];
     string childrenIds;
     int depth;
 

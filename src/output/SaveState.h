@@ -47,7 +47,7 @@ class SaveState {
         int amountOfNeighbourhoods;
 
         int linkCapacityIndex;
-        LinkCapacity linkCapacity[30];
+        LinkCapacity linkCapacity[200];
 
         std::ofstream saveFile;
         std::ifstream loadFile;

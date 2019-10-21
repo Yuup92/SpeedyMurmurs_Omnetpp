@@ -33,7 +33,6 @@ std::string SaveState::save(District *district) {
     saveFile.close();
 
     return res;
-
 }
 
 std::string SaveState::loadstate(District *district) {

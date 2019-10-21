@@ -38,6 +38,7 @@
  *     int spanningTreeIndex;
  *     int spanningTreeId;
  *     int spanningTreeIndexList;
+ *     int nextTreeIndex;
  *     int weightEdgeSpanningTree;
  * 
  *     int levelNode;
@@ -46,9 +47,9 @@
  *     int bestWeight;
  * 
  *     int indexChildrenIds;
- *     int listChildrenIds[20];
+ *     int listChildrenIds[1000];
  *     int lengthVectorCordinates;
- *     int vectorCordinates[150];
+ *     int vectorCordinates[1000];
  *     string childrenIds;
  *     int depth;
  * 
@@ -104,15 +105,16 @@ class BasicMessage : public ::omnetpp::cMessage
     int spanningTreeIndex;
     int spanningTreeId;
     int spanningTreeIndexList;
+    int nextTreeIndex;
     int weightEdgeSpanningTree;
     int levelNode;
     int fragmentName;
     int nodeState;
     int bestWeight;
     int indexChildrenIds;
-    int listChildrenIds[20];
+    int listChildrenIds[1000];
     int lengthVectorCordinates;
-    int vectorCordinates[150];
+    int vectorCordinates[1000];
     ::omnetpp::opp_string childrenIds;
     int depth;
     int endNodeId;
@@ -174,6 +176,8 @@ class BasicMessage : public ::omnetpp::cMessage
     virtual void setSpanningTreeId(int spanningTreeId);
     virtual int getSpanningTreeIndexList() const;
     virtual void setSpanningTreeIndexList(int spanningTreeIndexList);
+    virtual int getNextTreeIndex() const;
+    virtual void setNextTreeIndex(int nextTreeIndex);
     virtual int getWeightEdgeSpanningTree() const;
     virtual void setWeightEdgeSpanningTree(int weightEdgeSpanningTree);
     virtual int getLevelNode() const;

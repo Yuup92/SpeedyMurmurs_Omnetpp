@@ -24,6 +24,8 @@ class District {
         void set_node_id(int);
         int get_node_id(void);
 
+        int getNumSentCoordinateMsg(void);
+
         LinkCapacity * get_all_link_capacities(void);
         Neighbours * get_neighbourhood(int);
 
@@ -31,7 +33,7 @@ class District {
 
         void update_linked_nodes_from_spanningtree(SpanningTree *&);
         void update_linked_nodes_from_file(void);
-        void neighbours_coordinates_inquiry(void);
+        int neighbours_coordinates_inquiry(void);
 
         // Message handling
         void handle_message(BasicMessage *, int);
@@ -43,6 +45,8 @@ class District {
         int nodeId;
         int numOfNeighbourhoods;
         int numberOfConnections;
+
+        int sentCoordinateMsg;
 
         MessageBuffer msgBuf;
 

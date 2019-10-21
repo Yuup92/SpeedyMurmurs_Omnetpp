@@ -13,6 +13,10 @@
 class LinkedNode {
     public:
         LinkedNode();
+
+        bool sentConnectedCoordinates;
+        bool receivedConnectedCoordinates;
+
         void update_node(int, int, int, int, int *, bool);
         void update_node(int, int, int, int, int *, bool, LinkCapacity *);
         void update_node(int, int, int *, bool, int);
@@ -43,6 +47,7 @@ class LinkedNode {
 
         double get_virtual_capacity(void);
 
+        void set_sent_coordinate_bool(bool);
 
         int process_transaction(int);
 
@@ -66,12 +71,13 @@ class LinkedNode {
         int state;
         int weight;
         int numOfChildren;
-        int children[20];
+        int children[1000];
         int capacity;
         bool edgeTowardsRoot;
 
+
         int lengthConnectedCoordinates;
-        int connectedVectorCoordinates[150];
+        int connectedVectorCoordinates[1000];
 
         LinkCapacity *linkCapacity;
 };

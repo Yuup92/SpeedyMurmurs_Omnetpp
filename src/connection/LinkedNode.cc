@@ -2,6 +2,9 @@
 
 LinkedNode::LinkedNode(){
     numOfChildren = 0;
+
+    sentConnectedCoordinates = false;
+    receivedConnectedCoordinates = false;
 }
 
 void LinkedNode::update_node(int outgoingEdge, int s, int w, int numChild, int *childList, bool _edgeTowardsRoot) {
@@ -115,6 +118,10 @@ double LinkedNode::get_virtual_capacity(void) {
     return linkCapacity->get_current_virtual_capacity();
 }
 
+void LinkedNode::set_sent_coordinate_bool(bool r) {
+    sentConnectedCoordinates = r;
+}
+
 int LinkedNode::process_transaction(int transactionAmount) {
     if((capacity - transactionAmount) > 0){
         capacity = capacity - transactionAmount;
@@ -159,6 +166,7 @@ void LinkedNode::add_coordinates(BasicMessage *msg) {
     for(int i = 0; i < lengthConnectedCoordinates; i++) {
         connectedVectorCoordinates[i] = msg->getVectorCordinates(i);
     }
+    receivedConnectedCoordinates = true;
 
 }
 

@@ -18,7 +18,7 @@ struct state_edge {
     int state;
     int weight;
     int numOfChildren;
-    int children[20];
+    int children[500];
     bool edgeTowardsRoot;
 };
 
@@ -53,6 +53,9 @@ class SpanningTree
         static const int ROOT_QUERY_ACCEPT = 425;
         static const int ROOT_QUERY_REJECT = 430;
         static const int UPTREE_REPLY = 450;
+
+        static const int SEARCH_NEXT_TREE = 500;
+
 
 
         static const int INSPECTION = 666;
@@ -100,6 +103,7 @@ class SpanningTree
 
         int update_linked_nodes(LinkedNode *);
 
+        void search_for_next_tree(int);
 
         std::string state_edges_to_string(void);
 
@@ -119,10 +123,10 @@ class SpanningTree
         int bestWeight;
         int findCount; // number of expected messages
 
-        QueuedMessage *initialQueue[15];
-        QueuedMessage *connectQueue[15];
-        QueuedMessage *reportQueue[15];
-        QueuedMessage *testQueue[15];
+        QueuedMessage *initialQueue[500];
+        QueuedMessage *connectQueue[500];
+        QueuedMessage *reportQueue[500];
+        QueuedMessage *testQueue[500];
 
         int initialQueueIndex;
         int connectQueueIndex;
@@ -138,7 +142,7 @@ class SpanningTree
         int handle_connect_msg;
         int msgSentDownStream;
 
-        state_edge stateEdges[15];
+        state_edge stateEdges[2000];
         int sent_requests;
         bool edgesWeightUpdated;
         bool noInitialQueueMessages;
@@ -151,17 +155,18 @@ class SpanningTree
         int rootNodeId;
         bool isRoot;
         bool fullBroadcast;
+
+        bool sendNextTree;
+
         int currentDepth;
         int maxDepth;
         bool linkedNodesUpdated;
 
         int numConnectedNodes;
-        int listChildrenNodes[30];
+        int listChildrenNodes[500];
         int indexChildrenNodes;
 
-        int listOfOutGatesRand[15];
-
-        int vectorList[150];
+        int vectorList[1000];
         int lengthVectorList;
 
         double msgDelay;
@@ -234,6 +239,8 @@ class SpanningTree
         static BasicMessage * root_query(int, int);
         static BasicMessage * root_query_accept(int);
         static BasicMessage * root_query_reject(int);
+
+        static BasicMessage * search_next_tree(int,int);
 
 };
 

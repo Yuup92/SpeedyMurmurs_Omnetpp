@@ -1,99 +1,14 @@
-#ifndef BASICNODE_H_
-#define BASICNODE_H_
+#include "./BasicNode.h"
 
-#include <stdio.h>
-#include <string.h>
-#include <omnetpp.h>
-#include <cstdlib>
-
-#include "../paymentchannel/PaymentChannel.h"
-#include "../msg/basicmsg_m.h"
-#include "../sync/NodeClock.h"
-
-#include "../connection/District.h"
-#include "../connection/Neighbours.h"
-
-#include "../msg/outgoing_buf/BufferedMessage.h"
-
-#include "../alg/leader_election/LeaderElection.h"
-#include "../alg/spanning_tree/SpanningTree.h"
-
-#include "../output/FileWriter.h"
-#include "../output/SaveState.h"
-
-using namespace omnetpp;
-
-class BasicNode : public cSimpleModule
-{
-    public:
-        static const int NUM_OF_TREES = 10;
-        static const int NUM_OF_NODES = 23;
-        static const int STATIC_CAPACITY = 100;
-        static const bool RUN_SPANNINGTREE = false;
-        static const bool SAVE_STATE = false;
-        static const bool SAVE_RESULTS = false;
-
-        BasicNode();
-        virtual ~BasicNode();
-
-    protected:
-        virtual void initialize() override;
-        virtual void initialize_parameters();
-
-        virtual void start_message_timer();
-
-        virtual void handleMessage(cMessage *msg) override;
-
-        // Starts the search for a leader
-        virtual void broadcastLeaderRequest();
-
-    private:
-        NodeClock clock;
-        int nodeId;
-
-        bool firstSend;
-        bool nodeStateLoaded;
-        bool startSimulation;
-
-
-        // NUM of trees must be equal to the number of SpanningTree and Neighbours
-        SpanningTree spanningTrees[NUM_OF_TREES];
-        District district;
-
-        LeaderElection leader_election;
-        PaymentChannel paymentChannel;
-
-        FileWriter fileWriter;
-        SaveState saveState;
-
-        cMessage *event;    // pointer to the event object which will be used for timing
-        cMessage *broadcast_tree; // variable to remember the message until its sent back
-
-        virtual void sendMessagesFromBuffer(void);
-
-        virtual std::string parseNodeID(const char* nodeName);
-
-        void leaderInitialization(void);
-
-        void sendLeaderMessages(void);
-        void sendSpanningTreeMessages(void);
-        void sendTransactionMessages(void);
-        void sendDistrictMessages(void);
-
-        void run_simulation(void);
-};
-
-Define_Module(BasicNode);
-
-// TODO sendMessageBuffer periodically?
 BasicNode::BasicNode()
 {
     nodeId = 0;
+    spanningTreeSearchIndex = 0;
 
     // Set timer pointer to nullptr
     event = broadcast_tree = nullptr;
 
-    startSimulation = false;
+    runningSimulation = false;
 
     firstSend = false;
     nodeStateLoaded = false;
@@ -109,8 +24,7 @@ BasicNode::~BasicNode()
 void BasicNode::initialize()
 {
     initialize_parameters();
-
-
+    start_message_timer();
 }
 
 void BasicNode::initialize_parameters()
@@ -123,38 +37,51 @@ void BasicNode::initialize_parameters()
         nodeId = rand();
     }
 
-    district.set_num_of_connections(gateSize("out"));
-    district.set_num_of_neighbourhoods(NUM_OF_TREES);
-    district.set_node_id(nodeId);
+    district_initialization();
+    IO_initialization();
+    payment_channel_initialization();
 
-    fileWriter.set_node_id(nodeId, gateSize("out"));
-//    if(nodeId == 1) {
-//        fileWriter.initialize_file();
-//    }
-
-    if(SAVE_RESULTS) {
-
-    }
-
-    start_message_timer();
-
-    // Save state
-    saveState.set_node_id_and_amount_of_nodes(nodeId, BasicNode::NUM_OF_NODES);
-
-    // Neighbours
     if(BasicNode::RUN_SPANNINGTREE) {
+        state = BasicNode::SPANNING_TREE_STATE;
+
         for(int i = 0; i < BasicNode::NUM_OF_TREES; i++) {
             spanningTrees[i].set_node_id(nodeId);
             spanningTrees[i].set_spanning_tree_index(i);
             spanningTrees[i].set_num_neighbours(gateSize("out"));
-            spanningTrees[i].wake_up();
         }
+        spanningTrees[spanningTreeSearchIndex].wake_up();
+        runningSimulation = false;
+        runningSpanningTree = true;
     } else {
+        state = BasicNode::SIMULATION_STATE;
         District *dp = &district;
         std::string res = saveState.loadstate(dp);
-        startSimulation = true;
+        runningSimulation = true;
+        runningSpanningTree = false;
     }
 
+}
+
+void BasicNode::district_initialization(void) {
+    district.set_num_of_connections(gateSize("out"));
+    district.set_num_of_neighbourhoods(NUM_OF_TREES);
+    district.set_node_id(nodeId);
+    coordinateMsgsSent = 0;
+    coordinateMsgsReceived = 0;
+}
+
+void BasicNode::IO_initialization(void) {
+    fileWriter.set_node_id(nodeId, gateSize("out"));
+    if(nodeId == 1) {
+        fileWriter.initialize_file();
+    }
+
+    // Save state
+    saveState.set_node_id_and_amount_of_nodes(nodeId, BasicNode::NUM_OF_NODES);
+
+}
+
+void BasicNode::payment_channel_initialization(void) {
     paymentChannel.set_district(&district);
     paymentChannel.set_node_id(nodeId);
 }
@@ -177,7 +104,6 @@ void BasicNode::broadcastLeaderRequest()
     leader_election.broadcastLeaderRequest();
 }
 
-
 void BasicNode::handleMessage(cMessage *msg)
 {
 
@@ -185,58 +111,107 @@ void BasicNode::handleMessage(cMessage *msg)
     if (msg == event)
     {
         delete msg;
-        sendMessagesFromBuffer();
-        for(int i = 0; i < BasicNode::NUM_OF_TREES; i++) {
-            spanningTrees[i].check_queued_messages();
-        }
-
-
-        // Finish Initialization process
-        if(simTime() > 50 and not startSimulation and RUN_SPANNINGTREE) {
-            SpanningTree *p = spanningTrees;
-            district.update_linked_nodes_from_spanningtree(p);
-            district.neighbours_coordinates_inquiry();
-            if(SAVE_STATE){
-                District *dp = &district;
-                saveState.save(dp);
-            }
-            startSimulation = true;
-        }
-
-        if(startSimulation) {
-
-            if(nodeId == 17 and simTime() == 0.1) {
-                EV << "Pre node: 17 " << district.get_neighbourhood(0)->get_upstream_linked_node(0, 10)->to_string();
-                std::string res = paymentChannel.multi_path_send(0, 10, 2);
-                EV << "Node 17: " << res << "\n";
-            }
-        }
-
-        if(simTime() < 52) {
-            start_message_timer();
-        }
+        internal_message_handling();
 
     } else {
         BasicMessage * basicmsg = dynamic_cast<BasicMessage*> (msg);
-        if(basicmsg->getType() == LeaderElection::LEADER_MSG) {
-            leader_election.handleMessage(basicmsg, msg->getArrivalGate()->getIndex());
-        } else if(basicmsg->getType() == SpanningTree::MESSAGE_TYPE){
-            spanningTrees[basicmsg->getSpanningTreeIndex()].handle_message(basicmsg, msg->getArrivalGate()->getIndex(), simTime());
-        } else if(basicmsg->getType() == PaymentChannel::MESSAGE_TYPE) {
-            std::string res = paymentChannel.handle_message(basicmsg, msg->getArrivalGate()->getIndex());
-        } else if(basicmsg->getType() == Neighbours::MESSAGE_TYPE) {
-            district.handle_message(basicmsg, msg->getArrivalGate()->getIndex());
-        }
+        external_message_handling(basicmsg, msg);
         delete basicmsg;
     }
 }
 
+void BasicNode::internal_message_handling(void) {
+    sendMessagesFromBuffer();
+
+    if(state != BasicNode::FINISHED_STATE) {
+        start_message_timer();
+    }
+
+    if(state == BasicNode::SPANNING_TREE_STATE) {
+        internal_spanning_tree_handling();
+
+    } else if(state == BasicNode::COORDINATE_SHARING_STATE) {
+        check_coordinate_handling();
+    } else if(state == BasicNode::SIMULATION_STATE) {
+        EV_FATAL << "Node: " << nodeId << " is trying to run the simulation";
+    }
+
+}
+
+void BasicNode::internal_spanning_tree_handling(void) {
+    spanningTrees[spanningTreeSearchIndex].check_queued_messages();
+
+    if(spanningTrees[spanningTreeSearchIndex].is_node_root() and
+            spanningTrees[spanningTreeSearchIndex].full_broadcast_finished()) {
+
+        spanningTrees[spanningTreeSearchIndex].search_for_next_tree(spanningTreeSearchIndex);
+        spanningTreeSearchIndex++;
+        if(spanningTreeSearchIndex >= NUM_OF_TREES) {
+            SpanningTree *p = spanningTrees;
+            district.update_linked_nodes_from_spanningtree(p);
+
+            coordinateMsgsSent = district.neighbours_coordinates_inquiry();
+            state = BasicNode::COORDINATE_SHARING_STATE;
+
+            if(SAVE_STATE){
+                District *dp = &district;
+                saveState.save(dp);
+            }
+
+        } else {
+            spanningTrees[spanningTreeSearchIndex].wake_up();
+        }
+    }
+}
+
+void BasicNode::external_message_handling(BasicMessage *basicmsg, cMessage *msg) {
+    if(basicmsg->getType() == LeaderElection::LEADER_MSG) {
+                leader_election.handleMessage(basicmsg, msg->getArrivalGate()->getIndex());
+            } else if(basicmsg->getType() == SpanningTree::MESSAGE_TYPE){
+                process_spanning_tree_msg(basicmsg, msg);
+            } else if(basicmsg->getType() == PaymentChannel::MESSAGE_TYPE) {
+                std::string res = paymentChannel.handle_message(basicmsg, msg->getArrivalGate()->getIndex());
+            } else if(basicmsg->getType() == Neighbours::MESSAGE_TYPE) {
+                if(basicmsg->getSubType() == Neighbours::SEND_COORDINATES) {
+                    coordinateMsgsReceived++;
+                    check_coordinate_handling();
+                }
+                district.handle_message(basicmsg, msg->getArrivalGate()->getIndex());
+            }
+}
+
+void BasicNode::process_spanning_tree_msg(BasicMessage *basicmsg, cMessage *msg) {
+
+    if(basicmsg->getSubType() == SpanningTree::SEARCH_NEXT_TREE) {
+        spanningTreeSearchIndex = basicmsg->getNextTreeIndex() + 1;
+
+        if(spanningTreeSearchIndex == NUM_OF_TREES) {
+            SpanningTree *p = spanningTrees;
+            district.update_linked_nodes_from_spanningtree(p);
+            coordinateMsgsSent = district.neighbours_coordinates_inquiry();
+            state = BasicNode::COORDINATE_SHARING_STATE;
+            if(SAVE_STATE){
+                District *dp = &district;
+                EV_FATAL << saveState.save(dp) << "\n";
+            }
+        }
+    }
+    spanningTrees[basicmsg->getSpanningTreeIndex()].handle_message(basicmsg, msg->getArrivalGate()->getIndex(), simTime());
+}
+
+void BasicNode::check_coordinate_handling(void) {
+    if(coordinateMsgsSent > 0) {
+        if(coordinateMsgsSent == coordinateMsgsReceived) {
+            state = BasicNode::SIMULATION_STATE;
+        }
+    }
+}
 // based on https://stackoverflow.com/questions/14265581/parse-split-a-string-in-c-using-string-delimiter-standard-c
 // Parses the Node_#ID and returns a string of #ID
 std::string BasicNode::parseNodeID(const char* nodeName)
 {
    std::string node_ID = nodeName;
-   std::string delimiter = "_";
+   std::string delimiter = "node_";
 
    size_t pos = 0;
 
@@ -363,8 +338,6 @@ void BasicNode::run_simulation(void) {
 
 }
 
-// TODO
-// Fix or remove
 void BasicNode::leaderInitialization(void) {
      leader_election.setId(nodeId);
      //leader_election.setAmountNeighbours(connected_neighbours.get_amount_of_neighbours());
@@ -378,9 +351,9 @@ void BasicNode::sendLeaderMessages(void) {
 
     for (int i = 0; i < msg_in_leader_buffer; i++)
     {
-        BufferedMessage * buf_msg = leader_election.getMessage();
-        send(buf_msg->get_message(), "out", buf_msg->get_out_gate_int());
-        delete(buf_msg);
+        BufferedMessage * bufMsg = leader_election.getMessage();
+        send(bufMsg->get_message(), "out", bufMsg->get_out_gate_int());
+        delete(bufMsg);
     }
 }
 
@@ -393,9 +366,10 @@ void BasicNode::sendSpanningTreeMessages(void) {
             BufferedMessage * bufMsg = spanningTrees[i].get_message();
 
             BasicMessage * basicmsg = dynamic_cast<BasicMessage*> (bufMsg->get_message());
-            EV << nodeId << ": SpanningTree sending message type: " << basicmsg->getSubType() << " to address: " << bufMsg->get_out_gate_int() << " \n";
+
             sendDelayed(bufMsg->get_message(), bufMsg->get_delay(), "out", bufMsg->get_out_gate_int());
             delete(bufMsg);
+
         }
     }
 }
@@ -416,8 +390,6 @@ void BasicNode::sendTransactionMessages(void) {
 void BasicNode::sendDistrictMessages(void) {
     int msgTransaction = district.get_message_count();
 
-    EV << "Node: " << nodeId << " Amount of district messages: " << msgTransaction << "\n";
-
     for (int i = 0; i < msgTransaction; i++) {
         BufferedMessage * bufMsg = district.get_message();
 
@@ -427,5 +399,3 @@ void BasicNode::sendDistrictMessages(void) {
         delete(bufMsg);
     }
 }
-
-#endif

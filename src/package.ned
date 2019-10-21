@@ -7,6 +7,7 @@ simple BasicNode
     parameters:
         @display("i=misc/node");
     gates:
+        inout g[];
         input in[];
         output out[];
 }

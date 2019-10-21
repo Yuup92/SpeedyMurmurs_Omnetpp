@@ -32,6 +32,7 @@ SpanningTree::SpanningTree(){
     isRoot = false;
     fullBroadcast = false;
     linkedNodesUpdated = false;
+    sendNextTree = false;
 
     msgSentDownStream = 0;
     msgDelay = 0.0;
@@ -101,7 +102,6 @@ bool SpanningTree::get_linked_nodes_updated(void) {
 int SpanningTree::get_state(void) {
     return stateNode;
 }
-
 
 // TODO rename to_string()
 std::string SpanningTree::get_state_edge(void) {
@@ -182,6 +182,26 @@ void SpanningTree::wake_up(void) {
     stateNode = SpanningTree::STATE_FINDING_WEIGHT;
 }
 
+void SpanningTree::search_for_next_tree(int nextTreeIndex) {
+    // Kind of like a broadcast down tree
+    if(isRoot) {
+        for(int i = 0; i < numConnectedNodes; i++) {
+            if(stateEdges[i].state == SpanningTree::EDGESTATE_IN_MST) {
+                update_message_buf(SpanningTree::search_next_tree(spanningTreeIndex, nextTreeIndex),
+                                    stateEdges[i].outgoingEdge);
+            }
+        }
+    } else {
+        for(int i = 0; i < numConnectedNodes; i++) {
+            if(stateEdges[i].state == SpanningTree::EDGESTATE_IN_MST and
+                    stateEdges[i].outgoingEdge != edgeTowardsRoot) {
+                update_message_buf(SpanningTree::search_next_tree(spanningTreeIndex, nextTreeIndex),
+                                    stateEdges[i].outgoingEdge);
+            }
+        }
+    }
+}
+
 void SpanningTree::start_building_tree(void) {
 
     currentMinEdge = find_minimum_weight_edge();
@@ -219,12 +239,12 @@ BufferedMessage * SpanningTree::get_message(void)
 void SpanningTree::handle_message(BasicMessage* msg, int outgoingEdge, omnetpp::simtime_t prevSimTime)
 {
     handle_message_counter++;
+
     if(previousSimTime != prevSimTime) {
         msgDelay = 0;
     } else {
         previousSimTime = prevSimTime;
     }
-
 
     if(stateNode == SpanningTree::STATE_SLEEPING) {
         wake_up();
@@ -340,6 +360,12 @@ void SpanningTree::handle_spanning_tree_message(BasicMessage *msg, int outgoingE
         handle_weight_response(msg->getWeightEdgeSpanningTree(),
                                msg->getSpanningTreeIndexList(),
                                msg->getNodeId());
+
+    } else if(msg->getSubType() == SpanningTree::SEARCH_NEXT_TREE) {
+        if(!sendNextTree) {
+            search_for_next_tree(msg->getNextTreeIndex());
+            sendNextTree = true;
+        }
 
     }
 }
@@ -815,6 +841,9 @@ bool SpanningTree::check_test_queue_conditions(int level) {
 }
 
 bool SpanningTree::broadcast_up_stream(int maxDepth) {
+
+
+
     bool msgSent = false;
     if(not isRoot){
         aggregate_children_list();
@@ -875,11 +904,8 @@ void SpanningTree::send_inspection(int num, int inspect) {
     }
 }
 
-// TODO add msgDelay to the bufferedmessage process
-//  or add it later to the game somehow the way it works now
-//  is a little shitty
 void SpanningTree::update_message_buf(BasicMessage *msg, int outgoingEdge) {
-    msgDelay = msgDelay + 0.05;
+    msgDelay = 0;
     BufferedMessage * bufMsg = new BufferedMessage(msg, outgoingEdge, msgDelay);
     msgBuf.addMessage(bufMsg);
 }
@@ -1047,12 +1073,10 @@ BasicMessage * SpanningTree::broadcast_up_tree(int maxDepth, int indexChildList,
 
 
     std::string msgName = "";
-    for(int i = 0; i < indexChildList; i++) {
-        msgName += std::to_string(childList[i]) + " , ";
-    }
+
 
     char msgname[200];
-    sprintf(msgname, "BroadCast Reply message %s", msgName.c_str());
+    sprintf(msgname, "BroadCast Reply message");
     BasicMessage *msg = new BasicMessage(msgname);
 
     msg->setType(SpanningTree::MESSAGE_TYPE);
@@ -1104,6 +1128,20 @@ BasicMessage * SpanningTree::root_query_reject(int index) {
     msg->setSubType(SpanningTree::ROOT_QUERY_REJECT);
 
     msg->setSpanningTreeIndex(index);
+
+    return msg;
+}
+
+BasicMessage * SpanningTree::search_next_tree(int index, int nextTree) {
+    char msgname[40];
+    sprintf(msgname, "Search next tree");
+    BasicMessage *msg = new BasicMessage(msgname);
+
+    msg->setType(SpanningTree::MESSAGE_TYPE);
+    msg->setSubType(SpanningTree::SEARCH_NEXT_TREE);
+
+    msg->setSpanningTreeIndex(index);
+    msg->setNextTreeIndex(nextTree);
 
     return msg;
 }

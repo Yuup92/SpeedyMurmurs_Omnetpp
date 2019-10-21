@@ -21,6 +21,10 @@ int District::get_node_id(void) {
 }
 
 
+int District::getNumSentCoordinateMsg(void) {
+    return sentCoordinateMsg;
+}
+
 LinkCapacity * District::get_all_link_capacities(void) {
     return linkCapacities;
 }
@@ -51,10 +55,14 @@ void District::update_linked_nodes_from_file(void) {
     }
 }
 
-void District::neighbours_coordinates_inquiry(void) {
+int District::neighbours_coordinates_inquiry(void) {
+    sentCoordinateMsg = 0;
+
     for(int i = 0; i < numOfNeighbourhoods; i++) {
-        neighbourhoods[i].send_coordinates_direct_neighbours(&msgBuf);
+        sentCoordinateMsg += neighbourhoods[i].send_coordinates_direct_neighbours(&msgBuf);
     }
+
+    return sentCoordinateMsg;
 }
 
 void District::handle_message(BasicMessage *msg, int outgoingEdge) {

@@ -30,7 +30,7 @@ class Neighbours
         void set_node_id(int);
         int get_node_id(void);
 
-        void send_coordinates_direct_neighbours(MessageBuffer*);
+        int send_coordinates_direct_neighbours(MessageBuffer*);
 
         void set_number_of_neighbours(int out_gate_size);
 
@@ -76,9 +76,9 @@ class Neighbours
 
         bool linkedNodesUpdated;
         int numLinkedNodes;
-        LinkedNode linkedNodes[150];
+        LinkedNode linkedNodes[1000];
         int lengthNeighbourhoodCor;
-        int neighbourhoodCoordinates[150];
+        int neighbourhoodCoordinates[2000];
 
         static BasicMessage * request_coordinates(int, int);
         static BasicMessage * send_coordinates(int, int, int, int*);
