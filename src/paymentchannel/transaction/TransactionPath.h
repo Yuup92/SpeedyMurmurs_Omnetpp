@@ -30,6 +30,7 @@ public:
 
 
     TransactionPath();
+    void reset(void);
     void sending_path(double, LinkedNode*, int, int, int);
 
     void forwarding_path(double, LinkedNode*, LinkedNode*, int, int, int, int);
@@ -71,6 +72,9 @@ public:
     int get_num_of_total_paths(void);
     void set_num_of_total_paths(int);
 
+    bool is_completed();
+    void set_done(void);
+
     void set_sending_link(LinkedNode *);
     LinkedNode * get_link_towards_sender(void);
 
@@ -91,6 +95,8 @@ private:
     int pathId;
 
     int numOfPathsForTransaction;
+
+    bool done;
 
     LinkedNode *linkTowardsSender;
     LinkedNode *linkTowardsReceiver;

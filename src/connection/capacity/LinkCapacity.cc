@@ -33,6 +33,7 @@ int LinkCapacity::get_connected_node_id(void) {
 void LinkCapacity::set_current_capacity(double cap) {
     capacity = cap;
     virtualCapacity = cap;
+    return;
 }
 
 double LinkCapacity::get_current_capacity(void) {

@@ -19,15 +19,18 @@ class Transactions {
         static const int MAX_TRANSACTIONS = 1000;
 
         Transactions();
+        int get_current_trans();
+
         std::string add_send_transaction(District*, MessageBuffer*, double, int, int);
         std::string add_forward_transaction(MessageBuffer*, int, TransactionPath*);
         std::string add_receiving_transaction(MessageBuffer*, int, TransactionPath*);
 
-        std::string incoming_path_query_accept(TransactionPath*);
-
+        bool check_for_trans_id(int);
         Transaction * get_transaction(int);
         TransactionPath * get_path(int, int);
         // int add_send_transaction(double, int, LinkedNode**, int, int*);
+
+        bool remove_dead_transactions(void);
 
     private:
 
@@ -57,7 +60,10 @@ class Transactions {
         int startTime_ms;
         int endHTLC;
 
-        bool checkTransId(int, int&);
+        bool check_transId_exists(int, int&);
+
+
+        bool remove_transaction(int);
 };
 
 #endif

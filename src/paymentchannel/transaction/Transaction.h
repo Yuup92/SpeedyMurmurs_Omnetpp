@@ -25,21 +25,31 @@ class Transaction {
         static const int MAXPATHS = 10;
         static const int MAXCOMPLEMENTPATHS = 20;
 
+        static const int TRANSACTION_ALIVE = 200;
+        static const int TRANSACTION_DEAD = 500;
+        static const int TRANSACTION_ASLEEP = 150;
+
         // RECEIVER
 
         Transaction();
-        std::string start_transaction(District*, MessageBuffer*, double, int, int);
-        std::string forward_transaction(MessageBuffer*, int, TransactionPath*);
-        std::string receiving_transaction(MessageBuffer*, int, TransactionPath*);
-        // void start_transaction(double, int, LinkedNode**, int, int*);
+        void reset(void);
+        void set_amount(double);
+        int get_state(void);
+
+        std::string start_transaction(District*, MessageBuffer*, int, int, int);
+        std::string transaction_new_neighbourhood(District*, MessageBuffer*, int, int, int, int);
+        std::string report_error(MessageBuffer*, BasicMessage*, int, District*);
 
         std::string update_sender(MessageBuffer*, int);
         std::string update_forwarder(MessageBuffer*, int);
         std::string update_receiver(MessageBuffer*, int);
 
+        std::string forward_transaction(MessageBuffer*, int, TransactionPath*);
+        std::string receiving_transaction(MessageBuffer*, int, TransactionPath*);
+        // void start_transaction(double, int, LinkedNode**, int, int*);
+
 
         int get_trans_id(void);
-        int get_execution_role(void);
         TransactionPath * get_trans_path(int);
 
     private:
@@ -47,16 +57,17 @@ class Transaction {
         TransactionPath transactionPath[MAXPATHS];
         District *d;
 
-        int executionRole;
         int state;
 
         int numOfAddedPaths;
-        double Amount;
+        double amount;
         double totalFees;
         int transId;
         int nodeRole;
         int endNode;
         int numOfPaths;
+
+        int linkAttempts;
 
         // Sender Variable
         int receivedAcceptedPaths;
@@ -65,8 +76,8 @@ class Transaction {
         int receivedPendingPaths;
         int receivedPendRequests;
 
-        int setNeighbourhood[MAXPATHS];
-        int complementNeighbourhood[MAXCOMPLEMENTPATHS];
+        int neighbourhoodSet[MAXPATHS];
+        int neighbourhoodComplement[MAXCOMPLEMENTPATHS];
         int lengthComplementNArray;
 
         Latency latency;
@@ -75,33 +86,18 @@ class Transaction {
         void create_message_towards_sender(MessageBuffer*, TransactionPath*, int);
         void create_message_towards_receiver(MessageBuffer*, TransactionPath*, int);
 
+        std::string s_pend_trans_handler(MessageBuffer*);
+        std::string s_push_trans_handler(MessageBuffer*, TransactionPath*);
+
+        std::string capacity_error(MessageBuffer*, int, District*);
+        std::string s_capacity_error(MessageBuffer*, TransactionPath*, int, District*);
+
+        std::string timeout_error(MessageBuffer*, int);
+        std::string handle_error(MessageBuffer*, int);
+
+        void kill_transaction(MessageBuffer*);
+
         int get_transaction_path_index(int);
-
-        struct transaction_connection{
-            double amount;
-            // Is an Id for the whole transaction
-            int transId;
-            // Unique for every path
-            int pathTransId;
-            int pathsChecked;
-            int multiPathState;
-            int indexLinkedNode;
-            int edgeTowardsReceiver;
-            int edgeTowardsSender;
-            int endNode;
-            int state;
-            int neighbourhood;
-
-            LinkedNode *linkTowardsReceiver;
-            LinkedNode *linkTowardsSender;
-
-            int hopCount;
-            double fees;
-
-            int startTime_ms;
-            int endHTLC;
-
-        };
 
 };
 

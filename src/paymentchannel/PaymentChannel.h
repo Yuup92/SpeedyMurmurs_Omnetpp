@@ -50,6 +50,8 @@ class PaymentChannel {
     public:
         PaymentChannel();
 
+        Transactions transactions;
+
         // PARAM
         static const int CHANNELS_USED = 10;
 
@@ -123,7 +125,7 @@ class PaymentChannel {
     private:
 
         District *district;
-        Transactions transactions;
+
         TransactionMsg transMsg;
 
         MessageBuffer msgBuf;

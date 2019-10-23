@@ -25,6 +25,12 @@ int District::getNumSentCoordinateMsg(void) {
     return sentCoordinateMsg;
 }
 
+void District::set_all_capacities(double d) {
+    for(int i = 0; i < numberOfConnections; i++) {
+        linkCapacities[i].set_current_capacity(d);
+    }
+}
+
 LinkCapacity * District::get_all_link_capacities(void) {
     return linkCapacities;
 }

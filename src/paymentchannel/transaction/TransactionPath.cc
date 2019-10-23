@@ -1,7 +1,29 @@
 #include "./TransactionPath.h"
 
 TransactionPath::TransactionPath(){
+    executionRole = 0;
+    state;
+    amount = 0;
+    fees = 0;
+    endNode = 0;
+    neighbourhood = 0;
+    transactionId = 0;
+    pathId = 0;
+    numOfPathsForTransaction = 0;
+    done = false;
+}
 
+void TransactionPath::reset(void) {
+    executionRole = 0;
+    state;
+    amount = 0;
+    fees = 0;
+    endNode = 0;
+    neighbourhood = 0;
+    transactionId = 0;
+    pathId = 0;
+    numOfPathsForTransaction = 0;
+    done = false;
 }
 
 void TransactionPath::sending_path(double a, LinkedNode *rN, int endN, int n, int transId) {
@@ -141,6 +163,14 @@ int TransactionPath::get_num_of_total_paths(void) {
 
 void TransactionPath::set_num_of_total_paths(int numOfPaths) {
     numOfPathsForTransaction = numOfPaths;
+}
+
+bool TransactionPath::is_completed() {
+    return done;
+}
+
+void TransactionPath::set_done(void) {
+    done = true;
 }
 
 void TransactionPath::set_sending_link(LinkedNode *sN) {

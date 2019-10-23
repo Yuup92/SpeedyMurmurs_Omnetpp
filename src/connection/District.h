@@ -26,6 +26,7 @@ class District {
 
         int getNumSentCoordinateMsg(void);
 
+        void set_all_capacities(double);
         LinkCapacity * get_all_link_capacities(void);
         Neighbours * get_neighbourhood(int);
 

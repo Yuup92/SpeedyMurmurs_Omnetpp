@@ -113,6 +113,11 @@ void BasicNode::handleMessage(cMessage *msg)
         delete msg;
         internal_message_handling();
 
+        if(paymentChannel.transactions.get_current_trans() > 0) {
+
+            EV << "NodeId: " << nodeId << " has currentTransactions: " << paymentChannel.transactions.get_current_trans() <<"\n";
+
+        }
     } else {
         BasicMessage * basicmsg = dynamic_cast<BasicMessage*> (msg);
         external_message_handling(basicmsg, msg);
@@ -129,11 +134,20 @@ void BasicNode::internal_message_handling(void) {
 
     if(state == BasicNode::SPANNING_TREE_STATE) {
         internal_spanning_tree_handling();
-
     } else if(state == BasicNode::COORDINATE_SHARING_STATE) {
         check_coordinate_handling();
     } else if(state == BasicNode::SIMULATION_STATE) {
         EV_FATAL << "Node: " << nodeId << " is trying to run the simulation";
+        run_simulation();
+//        if(nodeId == 19 or nodeId == 6) {
+//           district.set_all_capacities(1.0);
+//        }
+//        if(nodeId == 17 and simTime() == 61.0) {
+//            std::string res = paymentChannel.multi_path_send(0, 75, 4);
+//        }
+        //std::string send = paymentChannel.multi_path_send(receiver, amount, 3);
+
+        //state = BasicNode::FINISHED_STATE;
     }
 
 }
@@ -166,18 +180,19 @@ void BasicNode::internal_spanning_tree_handling(void) {
 
 void BasicNode::external_message_handling(BasicMessage *basicmsg, cMessage *msg) {
     if(basicmsg->getType() == LeaderElection::LEADER_MSG) {
-                leader_election.handleMessage(basicmsg, msg->getArrivalGate()->getIndex());
-            } else if(basicmsg->getType() == SpanningTree::MESSAGE_TYPE){
-                process_spanning_tree_msg(basicmsg, msg);
-            } else if(basicmsg->getType() == PaymentChannel::MESSAGE_TYPE) {
-                std::string res = paymentChannel.handle_message(basicmsg, msg->getArrivalGate()->getIndex());
-            } else if(basicmsg->getType() == Neighbours::MESSAGE_TYPE) {
-                if(basicmsg->getSubType() == Neighbours::SEND_COORDINATES) {
-                    coordinateMsgsReceived++;
-                    check_coordinate_handling();
-                }
-                district.handle_message(basicmsg, msg->getArrivalGate()->getIndex());
-            }
+        leader_election.handleMessage(basicmsg, msg->getArrivalGate()->getIndex());
+    } else if(basicmsg->getType() == SpanningTree::MESSAGE_TYPE){
+        process_spanning_tree_msg(basicmsg, msg);
+    } else if(basicmsg->getType() == PaymentChannel::MESSAGE_TYPE) {
+        std::string res = paymentChannel.handle_message(basicmsg, msg->getArrivalGate()->getIndex());
+        EV << "Node: " << nodeId << " has received: " << res << "\n";
+    } else if(basicmsg->getType() == Neighbours::MESSAGE_TYPE) {
+        if(basicmsg->getSubType() == Neighbours::SEND_COORDINATES) {
+            coordinateMsgsReceived++;
+            check_coordinate_handling();
+        }
+        district.handle_message(basicmsg, msg->getArrivalGate()->getIndex());
+    }
 }
 
 void BasicNode::process_spanning_tree_msg(BasicMessage *basicmsg, cMessage *msg) {
@@ -229,14 +244,15 @@ void BasicNode::run_simulation(void) {
     // 0.05 % chance of sending
     if(sendTransactionProbability < 10000000) {
         int amountProbability = rand() % 100;
+        EV << amountProbability;
         double amount = 1;
 
         if(amountProbability < 5) {
-            amount = 20;
+            amount = 1000;
         } else if( amountProbability < 30) {
-            amount = 10;
+            amount = 900;
         } else if( amountProbability < 60) {
-            amount = 5;
+            amount = 400;
         }
 
         int nodeProbability = rand() % 100;
@@ -305,7 +321,7 @@ void BasicNode::run_simulation(void) {
             return;
         }
 
-        std::string send = paymentChannel.send(receiver, amount);
+        std::string send = paymentChannel.multi_path_send(receiver, amount, 3);
         EV << "Node: " << nodeId << " sending edge: " << send << "\n";
 
     }

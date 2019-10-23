@@ -32,9 +32,11 @@ class TransactionMsg {
         static const int CLOSE_TRANSACTION = 300;
         static const int ACCEPT_TRANSACTION_CLOSE = 305;
 
-        static const int CAPACITY_ERROR = 600;
-        static const int TIMEOUT = 605;
-        static const int ERROR = 610;
+        static const int ERROR = 600;
+        static const int CAPACITY_ERROR = 601;
+        static const int TIMEOUT = 602;
+        static const int FAILURE = 603;
+
 
         TransactionMsg();
         static BasicMessage* path_initiation_request(TransactionPath*);
@@ -46,6 +48,12 @@ class TransactionMsg {
 
         static BasicMessage* finish_transaction(TransactionPath*);
         static BasicMessage* close_transaction(TransactionPath*);
+
+        static BasicMessage* capacity_error(TransactionPath*);
+        static BasicMessage* capacity_error(int, int);
+        static BasicMessage* timeout_error(TransactionPath*);
+        static BasicMessage* error(TransactionPath*);
+        static BasicMessage* transaction_fail(TransactionPath*);
 };
 
 #endif

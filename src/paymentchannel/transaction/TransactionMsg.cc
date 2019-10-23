@@ -106,6 +106,77 @@ BasicMessage * TransactionMsg::close_transaction(TransactionPath *transaction) {
     msg->setPathTransactionId(transaction->get_path_trans_id());
 
     return msg;
-
-
 }
+
+BasicMessage * TransactionMsg::capacity_error(TransactionPath *transaction) {
+    char msgname[40];
+    sprintf(msgname, "Capacity Error");
+    BasicMessage *msg = new BasicMessage(msgname);
+
+    msg->setType(TransactionMsg::MESSAGE_TYPE);
+    msg->setSubType(TransactionMsg::CAPACITY_ERROR);
+
+    msg->setTransactionId(transaction->get_transaction_id());
+    msg->setPathTransactionId(transaction->get_path_trans_id());
+
+    return msg;
+}
+
+BasicMessage * TransactionMsg::capacity_error(int transId, int pathId) {
+    char msgname[40];
+    sprintf(msgname, "Capacity Error");
+    BasicMessage *msg = new BasicMessage(msgname);
+
+    msg->setType(TransactionMsg::MESSAGE_TYPE);
+    msg->setSubType(TransactionMsg::CAPACITY_ERROR);
+
+    msg->setTransactionId(transId);
+    msg->setPathTransactionId(pathId);
+
+    return msg;
+}
+
+BasicMessage * TransactionMsg::timeout_error(TransactionPath *transaction) {
+    char msgname[40];
+    sprintf(msgname, "Timeout Error");
+    BasicMessage *msg = new BasicMessage(msgname);
+
+    msg->setType(TransactionMsg::MESSAGE_TYPE);
+    msg->setSubType(TransactionMsg::TIMEOUT);
+
+    msg->setTransactionId(transaction->get_transaction_id());
+    msg->setPathTransactionId(transaction->get_path_trans_id());
+
+    return msg;
+}
+
+BasicMessage * TransactionMsg::error(TransactionPath *transaction) {
+    char msgname[40];
+    sprintf(msgname, "Error error");
+    BasicMessage *msg = new BasicMessage(msgname);
+
+    msg->setType(TransactionMsg::MESSAGE_TYPE);
+    msg->setSubType(TransactionMsg::ERROR);
+
+    msg->setTransactionId(transaction->get_transaction_id());
+    msg->setPathTransactionId(transaction->get_path_trans_id());
+
+    return msg;
+}
+
+BasicMessage * TransactionMsg::transaction_fail(TransactionPath *transaction) {
+    char msgname[40];
+    sprintf(msgname, "Transaction Fail");
+    BasicMessage *msg = new BasicMessage(msgname);
+
+    msg->setType(TransactionMsg::MESSAGE_TYPE);
+    msg->setSubType(TransactionMsg::FAILURE);
+
+    msg->setTransactionId(transaction->get_transaction_id());
+    msg->setPathTransactionId(transaction->get_path_trans_id());
+
+    return msg;
+}
+
+
+
