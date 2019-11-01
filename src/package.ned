@@ -21,10 +21,6 @@ network CompleteNetwork7
             delay = 10ms;
         }
 
-        channel Unnamed
-        {
-        }
-
     submodules:
         node_0: BasicNode {
             @display("p=94,38");
@@ -98,7 +94,7 @@ network CompleteNetwork7
         }
     connections:
         //Node0
-        node_0.out++ --> Channel --> node_1.in++;
+        node_0.out++ --> Channel--> node_1.in++;
         node_0.in++ <-- Channel <-- node_1.out++;
 
         node_0.out++ --> Channel --> node_6.in++;

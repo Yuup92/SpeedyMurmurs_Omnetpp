@@ -1,4 +1,4 @@
-#include "./LinkedNode.h"
+    #include "./LinkedNode.h"
 
 LinkedNode::LinkedNode(){
     numOfChildren = 0;
@@ -110,8 +110,16 @@ void LinkedNode::set_capacity(LinkCapacity *capacity) {
     linkCapacity = capacity;
 }
 
+LinkCapacity * LinkedNode::get_link_capacity(void) {
+    return linkCapacity;
+}
+
 double LinkedNode::get_capacity(void) {
     return linkCapacity->get_current_capacity();
+}
+
+bool LinkedNode::check_capacity(double amount){
+    return linkCapacity->check_capacity(amount);
 }
 
 double LinkedNode::get_virtual_capacity(void) {
@@ -137,27 +145,6 @@ bool LinkedNode::get_edge_towards_root(void) {
 
 void LinkedNode::set_edge_towards_root(bool edge) {
     edgeTowardsRoot = edge;
-}
-
-bool LinkedNode::pend_increase_transaction(double amount, int transId) {
-    return linkCapacity->add_pending_transaction_increase(amount, transId);
-}
-
-bool LinkedNode::pend_decrease_transaction(double amount, int transId) {
-    return linkCapacity->add_pending_transaction_decrease(amount, transId);
-}
-
-bool LinkedNode::update_capacity(int transId) {
-    bool updated_capacity =  linkCapacity->complete_transaction(transId);
-    return updated_capacity;
-}
-
-bool LinkedNode::update_capacity_increase(double amount) {
-    return linkCapacity->update_increase(amount);
-}
-
-bool LinkedNode::update_capacity_decrease(double amount) {
-    return linkCapacity->update_decrease(amount);
 }
 
 void LinkedNode::add_coordinates(BasicMessage *msg) {

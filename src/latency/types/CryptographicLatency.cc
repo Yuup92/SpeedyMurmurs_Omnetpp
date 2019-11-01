@@ -5,7 +5,7 @@ CryptographicLatency::CryptographicLatency() {
 }
 
 double CryptographicLatency::calculate_delay_ms(void) {
-    delay = 0.015;
+    delay = 0.00;//0.0015
     return delay;
 }
 

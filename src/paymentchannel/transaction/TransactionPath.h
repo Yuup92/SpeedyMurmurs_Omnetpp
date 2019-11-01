@@ -23,8 +23,8 @@ public:
     static const int JOINED_PATH = 210;
     static const int CLOSE_PATH = 220;
     static const int PEND_PATH = 230;
-    static const int PENDING_ACCEPTED = 240;
-    static const int PENDING_FAILED = 250;
+    static const int PENDING_ACCEPTED = 250;
+    static const int PENDING_FAILED = 240;
     static const int FINISH_TRANSACTION = 270;
     static const int CLOSE_TRANSACTION = 280;
 
@@ -72,6 +72,9 @@ public:
     int get_num_of_total_paths(void);
     void set_num_of_total_paths(int);
 
+    bool get_transaction_pended(void);
+    void set_transaction_pended(bool);
+
     bool is_completed();
     void set_done(void);
 
@@ -96,6 +99,7 @@ private:
 
     int numOfPathsForTransaction;
 
+    bool pendTransaction;
     bool done;
 
     LinkedNode *linkTowardsSender;

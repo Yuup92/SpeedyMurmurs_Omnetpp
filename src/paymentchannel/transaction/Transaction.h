@@ -40,7 +40,7 @@ class Transaction {
         std::string transaction_new_neighbourhood(District*, MessageBuffer*, int, int, int, int);
         std::string report_error(MessageBuffer*, BasicMessage*, int, District*);
 
-        std::string update_sender(MessageBuffer*, int);
+        std::string update_sender(MessageBuffer*, int, District*);
         std::string update_forwarder(MessageBuffer*, int);
         std::string update_receiver(MessageBuffer*, int);
 
@@ -75,6 +75,7 @@ class Transaction {
         // Receiver Variables
         int receivedPendingPaths;
         int receivedPendRequests;
+        int receivedClosedTransactions;
 
         int neighbourhoodSet[MAXPATHS];
         int neighbourhoodComplement[MAXCOMPLEMENTPATHS];
@@ -89,16 +90,18 @@ class Transaction {
         std::string s_pend_trans_handler(MessageBuffer*);
         std::string s_push_trans_handler(MessageBuffer*, TransactionPath*);
 
+        std::string close_path(MessageBuffer*, TransactionPath*);
         std::string capacity_error(MessageBuffer*, int, District*);
-        std::string s_capacity_error(MessageBuffer*, TransactionPath*, int, District*);
+        std::string forwader_capacity_error(MessageBuffer*, TransactionPath*);
 
         std::string timeout_error(MessageBuffer*, int);
         std::string handle_error(MessageBuffer*, int);
 
-        void kill_transaction(MessageBuffer*);
+        std::string kill_transaction(MessageBuffer*, int);
 
         int get_transaction_path_index(int);
 
+        void remove_transaction_path(TransactionPath*);
 };
 
 #endif

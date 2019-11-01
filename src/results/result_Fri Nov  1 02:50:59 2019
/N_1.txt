@@ -1,0 +1,1 @@
+time, tCompleted, tStarted, tForwarded, currentTransactions, tFailed, tTimedout, nDelay, cDelay, osDelay, numLinkedNeighbours, id, capacity, virtualCap, numOfpayments, numOfPaymentsPending,id, capacity, virtualCap, numOfpayments, numOfPaymentsPending,id, capacity, virtualCap, numOfpayments, numOfPaymentsPending,

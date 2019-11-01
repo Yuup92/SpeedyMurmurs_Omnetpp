@@ -25,6 +25,13 @@ void BasicNode::initialize()
 {
     initialize_parameters();
     start_message_timer();
+    initialize_stats();
+
+    /**
+     * Debug, Remove once done
+     */
+    // district.set_all_capacities(20);
+
 }
 
 void BasicNode::initialize_parameters()
@@ -86,6 +93,20 @@ void BasicNode::payment_channel_initialization(void) {
     paymentChannel.set_node_id(nodeId);
 }
 
+void BasicNode::initialize_stats(void) {
+    msgSendCountVector.setName("msg_Sent");
+    sptMsgCountVector.setName("spt_Sent");
+    pcMsgCountVector.setName("pc_Sent");
+
+    msgSendCount = 0;
+    sptMsgCount = 0;
+    pcMsgCount = 0;
+
+    WATCH(msgSendCount);
+    WATCH(sptMsgCount);
+    WATCH(pcMsgCount);
+}
+
 void BasicNode::start_message_timer()
 {
     event = new cMessage("event");
@@ -94,6 +115,8 @@ void BasicNode::start_message_timer()
 
 void BasicNode::sendMessagesFromBuffer(void)
 {
+    msgSendCount++;
+    msgSendCountVector.record(msgSendCount);
     sendSpanningTreeMessages();
     sendTransactionMessages();
     sendDistrictMessages();
@@ -104,20 +127,22 @@ void BasicNode::broadcastLeaderRequest()
     leader_election.broadcastLeaderRequest();
 }
 
-void BasicNode::handleMessage(cMessage *msg)
-{
+void BasicNode::handleMessage(cMessage *msg) {
 
     // https://stackoverflow.com/questions/40873629/omnet-adding-functionalities-to-handlemessage-in-my-class
-    if (msg == event)
-    {
+    if (msg == event) {
         delete msg;
         internal_message_handling();
 
-        if(paymentChannel.transactions.get_current_trans() > 0) {
+        EV << "NodeId: " << nodeId << " has capacities:\n";
 
-            EV << "NodeId: " << nodeId << " has currentTransactions: " << paymentChannel.transactions.get_current_trans() <<"\n";
+        LinkCapacity *cp = district.get_all_link_capacities();
 
+        for(int i = 0; i < gateSize("out"); i++) {
+            std::string res = cp[i].to_file();
+            EV << res <<"\n";
         }
+
     } else {
         BasicMessage * basicmsg = dynamic_cast<BasicMessage*> (msg);
         external_message_handling(basicmsg, msg);
@@ -134,20 +159,18 @@ void BasicNode::internal_message_handling(void) {
 
     if(state == BasicNode::SPANNING_TREE_STATE) {
         internal_spanning_tree_handling();
+        // EV << "Node: " << nodeId << " Spanning Tree";
     } else if(state == BasicNode::COORDINATE_SHARING_STATE) {
+        // EV << "Node: " << nodeId << " RUNNING COORDINATE_SHARING";
         check_coordinate_handling();
     } else if(state == BasicNode::SIMULATION_STATE) {
-        EV_FATAL << "Node: " << nodeId << " is trying to run the simulation";
-        run_simulation();
-//        if(nodeId == 19 or nodeId == 6) {
-//           district.set_all_capacities(1.0);
+//        if(nodeId == 22 and paymentChannel.get_current_transaction_index() == 0) {
+//            paymentChannel.multi_path_send(0, 200, 5);
 //        }
-//        if(nodeId == 17 and simTime() == 61.0) {
-//            std::string res = paymentChannel.multi_path_send(0, 75, 4);
-//        }
-        //std::string send = paymentChannel.multi_path_send(receiver, amount, 3);
+        if(simTime() < 100) {
+            run_simulation();
+        }
 
-        //state = BasicNode::FINISHED_STATE;
     }
 
 }
@@ -162,6 +185,7 @@ void BasicNode::internal_spanning_tree_handling(void) {
         spanningTreeSearchIndex++;
         if(spanningTreeSearchIndex >= NUM_OF_TREES) {
             SpanningTree *p = spanningTrees;
+
             district.update_linked_nodes_from_spanningtree(p);
 
             coordinateMsgsSent = district.neighbours_coordinates_inquiry();
@@ -185,7 +209,7 @@ void BasicNode::external_message_handling(BasicMessage *basicmsg, cMessage *msg)
         process_spanning_tree_msg(basicmsg, msg);
     } else if(basicmsg->getType() == PaymentChannel::MESSAGE_TYPE) {
         std::string res = paymentChannel.handle_message(basicmsg, msg->getArrivalGate()->getIndex());
-        EV << "Node: " << nodeId << " has received: " << res << "\n";
+        //EV << "\n\n\nNode: " << nodeId << " handle_message: " << res << "\n";
     } else if(basicmsg->getType() == Neighbours::MESSAGE_TYPE) {
         if(basicmsg->getSubType() == Neighbours::SEND_COORDINATES) {
             coordinateMsgsReceived++;
@@ -205,6 +229,9 @@ void BasicNode::process_spanning_tree_msg(BasicMessage *basicmsg, cMessage *msg)
             district.update_linked_nodes_from_spanningtree(p);
             coordinateMsgsSent = district.neighbours_coordinates_inquiry();
             state = BasicNode::COORDINATE_SHARING_STATE;
+
+
+
             if(SAVE_STATE){
                 District *dp = &district;
                 EV_FATAL << saveState.save(dp) << "\n";
@@ -223,6 +250,7 @@ void BasicNode::check_coordinate_handling(void) {
 }
 // based on https://stackoverflow.com/questions/14265581/parse-split-a-string-in-c-using-string-delimiter-standard-c
 // Parses the Node_#ID and returns a string of #ID
+
 std::string BasicNode::parseNodeID(const char* nodeName)
 {
    std::string node_ID = nodeName;
@@ -244,15 +272,14 @@ void BasicNode::run_simulation(void) {
     // 0.05 % chance of sending
     if(sendTransactionProbability < 10000000) {
         int amountProbability = rand() % 100;
-        EV << amountProbability;
-        double amount = 1;
+        double amount = 250;
 
         if(amountProbability < 5) {
-            amount = 1000;
+            amount = 1.00;
         } else if( amountProbability < 30) {
-            amount = 900;
+            amount = 5.00;
         } else if( amountProbability < 60) {
-            amount = 400;
+            amount = 13.00;
         }
 
         int nodeProbability = rand() % 100;
@@ -331,27 +358,6 @@ void BasicNode::run_simulation(void) {
             //EV << "node: " << nodeId << " has transaction string with capacities: " << transaction.capacities_to_string() << " \n delay:" << transaction.delay_to_string() << "\n";
     }
 
-//    std::string time = simTime().str();
-
-    //Gather capacities on the lines
-//    std::string capacities = "";
-//    for(int i = 0; i < gateSize("out"); i++) {
-//        capacities += linkCapacities[i].to_file();
-//    }
-
-//    fileWriter.update_variables(time,
-//                                paymentChannel.get_num_completed_transactions(),
-//                                paymentChannel.get_num_of_total_transactions(),
-//                                paymentChannel.get_num_forwarded_transactions(),
-//                                paymentChannel.get_num_forwarded_completed_transactions(),
-//                                paymentChannel.get_current_transaction_id(),
-//                                paymentChannel.get_failed_transactions(),
-//                                paymentChannel.get_capacity_failure(),
-//                                paymentChannel.get_network_delay(),
-//                                paymentChannel.get_crypto_delay(),
-//                                paymentChannel.get_os_delay(),
-//                                capacities);
-
 }
 
 void BasicNode::leaderInitialization(void) {
@@ -385,7 +391,8 @@ void BasicNode::sendSpanningTreeMessages(void) {
 
             sendDelayed(bufMsg->get_message(), bufMsg->get_delay(), "out", bufMsg->get_out_gate_int());
             delete(bufMsg);
-
+            sptMsgCount++;
+            sptMsgCountVector.record(sptMsgCount);
         }
     }
 }
@@ -400,6 +407,9 @@ void BasicNode::sendTransactionMessages(void) {
 
         sendDelayed(bufMsg->get_message(), bufMsg->get_delay(), "out", bufMsg->get_out_gate_int());
         delete(bufMsg);
+        pcMsgCount++;
+        pcMsgCountVector.record(pcMsgCount);
+        //pcMsgCountVector.collect(pcMsgCount);
     }
 }
 
@@ -414,4 +424,12 @@ void BasicNode::sendDistrictMessages(void) {
         sendDelayed(bufMsg->get_message(), bufMsg->get_delay(), "out", bufMsg->get_out_gate_int());
         delete(bufMsg);
     }
+}
+
+void BasicNode::check_stat_flags(void) {
+
+}
+
+void BasicNode::finish() {
+
 }

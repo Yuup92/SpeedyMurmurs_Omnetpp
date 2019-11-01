@@ -6,6 +6,7 @@
 #include <iostream>
 #include <fstream>
 #include <sys/stat.h>
+#include <omnetpp.h>
 
 #include "../../paymentchannel/concurrency/Concurrency.h"
 
@@ -18,6 +19,8 @@ struct pending_payment {
 class LinkCapacity {
 
     public:
+        bool statsChanged;
+
         LinkCapacity();
         LinkCapacity(int);
 
@@ -29,13 +32,19 @@ class LinkCapacity {
 
         double get_current_capacity(void);
         void set_current_capacity(double);
+        bool check_capacity(double);
 
         double get_current_virtual_capacity(void);
 
-        bool add_pending_transaction_increase(double, int);
-        bool add_pending_transaction_decrease(double, int);
+        bool pend_transaction_upstream(double);
 
-        bool complete_transaction(int);
+        void complete_transaction_downstream(double);
+        bool complete_transaction_upstream(double);
+
+        void cancel_pend(double);
+
+        void add_capacity(double);
+        void remove_capacity(double);
 
         void remove_pending_transaction_index(int);
         void remove_pending_transaction_transaction_id(int);
@@ -51,11 +60,10 @@ class LinkCapacity {
         double capacity;
         double virtualCapacity;
 
-        int numOfPayments;
-        int numOfPaymentsPending;
+        long numOfPayments;
+        long numOfPaymentsPending;
         pending_payment pendingPayments[2000];
         Concurrency concurrency[50];
-
 };
 
 #endif

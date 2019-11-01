@@ -1,7 +1,7 @@
 #include "./LinkCapacity.h"
 
 LinkCapacity::LinkCapacity() {
-    capacity = 100;
+    capacity = 0;
     virtualCapacity = capacity;
     numOfPayments = 0;
     numOfPaymentsPending = 0;
@@ -40,60 +40,69 @@ double LinkCapacity::get_current_capacity(void) {
     return capacity;
 }
 
-double LinkCapacity::get_current_virtual_capacity(void) {
-    return virtualCapacity;
-}
-
-// Because a link cannot go  below 0, if capacity is added to the line
-// it will not be added to the virtualcapacity because the sequence of the
-// transactions has the potential of killing the line and may lead to payments
-// thinking they can procceed while the line is down
-bool LinkCapacity::add_pending_transaction_increase(double amount, int transactionId) {
-
-    pendingPayments[numOfPaymentsPending].amount = amount;
-    pendingPayments[numOfPaymentsPending].transactionId = transactionId;
-    pendingPayments[numOfPaymentsPending].increaseLink = true;
-    numOfPaymentsPending++;
-    return true;
-
-}
-
-bool LinkCapacity::add_pending_transaction_decrease(double amount, int transactionId) {
+bool LinkCapacity::check_capacity(double amount) {
     int newVirtualCapacity = virtualCapacity - amount;
-
     if(newVirtualCapacity > 0) {
-        virtualCapacity = newVirtualCapacity;
-        pendingPayments[numOfPaymentsPending].amount = amount;
-        pendingPayments[numOfPaymentsPending].transactionId = transactionId;
-        pendingPayments[numOfPaymentsPending].increaseLink = false;
-        numOfPaymentsPending++;
         return true;
     } else {
         return false;
     }
-
 }
 
-bool LinkCapacity::complete_transaction(int transId) {
-    int numOfPendingPayments = numOfPaymentsPending;
 
-    for(int i = 0; i < numOfPendingPayments; i++) {
-        if(pendingPayments[i].transactionId == transId) {
-            if(pendingPayments[i].increaseLink == true) {
-                capacity = capacity + pendingPayments[i].amount;
-                virtualCapacity = virtualCapacity + pendingPayments[i].amount;
-            } else {
-                capacity = capacity - pendingPayments[i].amount;
-            }
-            numOfPayments++;
-            return true;
-        }
+double LinkCapacity::get_current_virtual_capacity(void) {
+    return virtualCapacity;
+}
+
+bool LinkCapacity::pend_transaction_upstream(double amount) {
+    int newVirtualCapacity = virtualCapacity - amount;
+
+    if(newVirtualCapacity > 0) {
+        virtualCapacity = newVirtualCapacity;
+        numOfPaymentsPending++;
+        return true;
     }
     return false;
 }
 
+void LinkCapacity::complete_transaction_downstream(double amount) {
+    capacity = capacity + amount;
+    virtualCapacity = virtualCapacity + amount;
+    numOfPayments++;
+}
+
+bool LinkCapacity::complete_transaction_upstream(double amount) {
+    int newCapacity = capacity - amount;
+    if(newCapacity > 0) {
+        capacity = newCapacity;
+        numOfPaymentsPending--;
+        numOfPayments++;
+        return true;
+    } else {
+        virtualCapacity = virtualCapacity + amount;
+        //numOfPaymentsPending--;
+        return false;
+    }
+}
+
+void LinkCapacity::cancel_pend(double amount) {
+    virtualCapacity = virtualCapacity + amount;
+    numOfPaymentsPending--;
+}
+
+void LinkCapacity::add_capacity(double amount) {
+    capacity = capacity + amount;
+    numOfPayments--;
+}
+
+void LinkCapacity::remove_capacity(double amount) {
+    capacity = capacity - amount;
+    numOfPayments--;
+}
+
 void LinkCapacity::remove_pending_transaction_index(int index) {
     if(numOfPaymentsPending == 1) {
+
         numOfPaymentsPending = 0;
         return;
     } else if(index == numOfPaymentsPending) {

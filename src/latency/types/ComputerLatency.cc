@@ -13,7 +13,7 @@ double ComputerLatency::get_delay(void) {
 double ComputerLatency::calculate_delay_ms(void) {
 
     std::normal_distribution<double> distribution(0.0005, 0.005);
-    delay = distribution(generator) + 0.015;
+    delay = 0;//distribution(generator) + 0.015;
     return delay;
 
 }

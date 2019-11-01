@@ -7,7 +7,7 @@ NetworkLatency::NetworkLatency(void){
 double NetworkLatency::calculate_delay_ms(void) {
 
     std::lognormal_distribution<double> distribution(0.002, 0.7);
-    delay = distribution(generator) / 10.0;
+    delay = 0;//distribution(generator) / 10.0;
     return delay;
 
 }

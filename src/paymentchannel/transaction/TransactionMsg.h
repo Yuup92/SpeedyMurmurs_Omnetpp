@@ -36,6 +36,7 @@ class TransactionMsg {
         static const int CAPACITY_ERROR = 601;
         static const int TIMEOUT = 602;
         static const int FAILURE = 603;
+        static const int CLOSE_PATH = 604;
 
 
         TransactionMsg();
@@ -54,6 +55,7 @@ class TransactionMsg {
         static BasicMessage* timeout_error(TransactionPath*);
         static BasicMessage* error(TransactionPath*);
         static BasicMessage* transaction_fail(TransactionPath*);
+        static BasicMessage* close_path(TransactionPath*);
 };
 
 #endif

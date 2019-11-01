@@ -11,6 +11,7 @@ TransactionPath::TransactionPath(){
     pathId = 0;
     numOfPathsForTransaction = 0;
     done = false;
+    pendTransaction = false;
 }
 
 void TransactionPath::reset(void) {
@@ -24,6 +25,7 @@ void TransactionPath::reset(void) {
     pathId = 0;
     numOfPathsForTransaction = 0;
     done = false;
+    pendTransaction = false;
 }
 
 void TransactionPath::sending_path(double a, LinkedNode *rN, int endN, int n, int transId) {
@@ -163,6 +165,14 @@ int TransactionPath::get_num_of_total_paths(void) {
 
 void TransactionPath::set_num_of_total_paths(int numOfPaths) {
     numOfPathsForTransaction = numOfPaths;
+}
+
+bool TransactionPath::get_transaction_pended(void) {
+    return pendTransaction;
+}
+
+void TransactionPath::set_transaction_pended(bool trans) {
+    pendTransaction = trans;
 }
 
 bool TransactionPath::is_completed() {

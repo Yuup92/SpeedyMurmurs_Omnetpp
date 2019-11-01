@@ -109,11 +109,12 @@ std::string PaymentChannel::multi_path_send(int endNode, double amount, int numb
     int transactionId = rand();
 
     // TODO make this a double
-    int partialAmount = amount/numberOfPaths;
+    double partialAmount = amount/numberOfPaths;
 
     std::string res = "";
     res = transactions.add_send_transaction(district, &msgBuf, amount, endNode, numberOfPaths);
 
+    transactionConnectionIndex++;
     numberOfTotalTransactions++;
     return res;
 }
@@ -130,7 +131,6 @@ std::string PaymentChannel::handle_message(BasicMessage *msg, int outgoingEdge) 
                              msg->getNeighbourhoodIndex());
     } else {
         if(transactions.check_for_trans_id(msg->getTransactionId())) {
-            res += "TRANSACTOPN FOUND IN CHECK!!";
 
             Transaction *trans = transactions.get_transaction(msg->getTransactionId());
             int pathId = msg->getPathTransactionId();
@@ -139,22 +139,18 @@ std::string PaymentChannel::handle_message(BasicMessage *msg, int outgoingEdge) 
                 res += "Received error";
                 res += trans->report_error(&msgBuf, msg, pathId, district);
             } else if(role == TransactionPath::SENDER) {
-                trans->update_sender(&msgBuf, pathId);
+                res += trans->update_sender(&msgBuf, pathId, district);
             } else if(role == TransactionPath::RECEIVER) {
                 trans->update_receiver(&msgBuf, pathId);
             } else if(role == TransactionPath::FORWARDER) {
                 res = trans->update_forwarder(&msgBuf, pathId);
             }
-
-
             transactions.remove_dead_transactions();
 
         } else {
             res += "Msg received transactionId not known";
         }
     }
-
-
 
     return res;
 }
@@ -177,7 +173,8 @@ void PaymentChannel::handle_query_message(int outgoingEdge, int transId, int pat
         LinkedNode *sN = district->get_neighbourhood(neighbourhood)->get_downstream_linked_node(outgoingEdge);
         LinkedNode *rN = district->get_neighbourhood(neighbourhood)->get_upstream_linked_node(nId, amount);
 
-        if(amount < rN->get_virtual_capacity()) {
+        LinkCapacity *c = rN->get_link_capacity();
+        if(c->check_capacity(amount)) {
             TransactionPath transPath;
             transPath.forwarding_path(amount, rN, sN, nId, neighbourhood, transId, pathTransId);
             transactions.add_forward_transaction(&msgBuf, transId, &transPath);
@@ -213,42 +210,6 @@ void PaymentChannel::update_message_buf(BasicMessage *msg, int outgoingEdge) {
     // msgDelay = msgDelay + 0.5;
     BufferedMessage * bufMsg = new BufferedMessage(msg, outgoingEdge, msgDelay);
     msgBuf.addMessage(bufMsg);
-}
-
-int PaymentChannel::get_trans_conn_index(int transId, int pathTransId) {
-    if(transactionConnectionIndex > 0) {
-        for(int i = 0; i < transactionConnectionIndex; i++) {
-            if(transactionConnections[i].transId == transId and
-                    transactionConnections[i].pathTransId == pathTransId) {
-                return i;
-            }
-        }
-    }
-    return -1;
-}
-
-void PaymentChannel::remove_transaction_via_index(int index) {
-    if(index < 0) {
-        return;
-    }
-
-    for(int i = index; i < transactionConnectionIndex; i++) {
-        if((i+1) < transactionConnectionIndex) {
-            transactionConnections[i] = transactionConnections[i+1];
-        }
-    }
-    transactionConnectionIndex--;
-}
-
-void PaymentChannel::remove_transaction(int transId) {
-    int i = 0;
-    while(i < transactionConnectionIndex) {
-        if(transactionConnections[i].transId == transId) {
-            remove_transaction_via_index(i);
-        } else {
-            i++;
-        }
-    }
 }
 
 std::string PaymentChannel::to_string(void) {

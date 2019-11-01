@@ -5,7 +5,6 @@ Transaction::Transaction(){
     amount = 0;
     totalFees = 0;
     transId = 0;
-    endNode = -1;
     numOfPaths = 0;
     numOfAddedPaths = 0;
     lengthComplementNArray = 0;
@@ -19,6 +18,7 @@ Transaction::Transaction(){
     transId = 0;
 
     state = Transaction::TRANSACTION_ASLEEP;
+    receivedClosedTransactions = 0;
 }
 
 void Transaction::reset(void) {
@@ -31,11 +31,15 @@ void Transaction::reset(void) {
     amount = 0;
     totalFees = 0;
     transId = 0;
-    endNode = -1;
     numOfPaths = 0;
 
     linkAttempts = 0;
     for(int i = 0 ; i < numOfAddedPaths; i++) {
+        if(transactionPath[i].get_transaction_pended()) {
+            LinkCapacity *c = transactionPath[i].get_link_towards_receiver()->get_link_capacity();
+            c->cancel_pend(transactionPath[i].get_amount());
+            transactionPath[i].set_transaction_pended(false);
+        }
         transactionPath[i].reset();
     }
 
@@ -45,10 +49,10 @@ void Transaction::reset(void) {
     }
 
     numOfAddedPaths = 0;
+    receivedClosedTransactions = 0;
 
     state = Transaction::TRANSACTION_ASLEEP;
 }
-
 
 void Transaction::set_amount(double a) {
     amount = a;
@@ -87,12 +91,8 @@ std::string Transaction::start_transaction(District *dis, MessageBuffer *msgBuf,
         linkAttempts++;
         LinkedNode *n = dis->get_neighbourhood(randNeighbourhood)->get_upstream_linked_node(endNode, amount_per_path);
         if(numOfAddedPaths < numOfPaths) {
-            if(amount_per_path < n->get_capacity()) {
+            if(n->check_capacity(amount_per_path)){
                 transactionPath[numOfAddedPaths].sending_path(amount_per_path, n, endNode, randNeighbourhood, transId);
-                double msgDelay = latency.calculate_delay_ms(true);
-                BasicMessage *m = TransactionMsg::path_initiation_request(&transactionPath[numOfAddedPaths]);
-                BufferedMessage * bufMsg = new BufferedMessage(m, transactionPath[numOfAddedPaths].get_path_outgate_towards_receiver(), msgDelay);
-                msgBuf->addMessage(bufMsg);
                 res += "Added a message";
                 numOfAddedPaths++;
             }
@@ -106,9 +106,15 @@ std::string Transaction::start_transaction(District *dis, MessageBuffer *msgBuf,
         sendingFailed = true;
     }
 
-    if(sendingFailed) {
-        kill_transaction(msgBuf);
-        return "false";
+    if(not sendingFailed) {
+        for(int i = 0; i < numOfAddedPaths; i++) {
+            double msgDelay = latency.calculate_delay_ms(true);
+            BasicMessage *m = TransactionMsg::path_initiation_request(&transactionPath[i]);
+            BufferedMessage * bufMsg = new BufferedMessage(m, transactionPath[i].get_path_outgate_towards_receiver(), msgDelay);
+            msgBuf->addMessage(bufMsg);
+        }
+    } else {
+        state = Transaction::TRANSACTION_DEAD;
     }
     return res;
 }
@@ -122,21 +128,24 @@ std::string Transaction::transaction_new_neighbourhood(District *dis, MessageBuf
 
     lengthComplementNArray = maxNumOfTrees - numOfPaths;
 
+    if(transactionPath[pathIndex].get_transaction_pended()){
+        LinkCapacity *c = transactionPath[pathIndex].get_link_towards_receiver()->get_link_capacity();
+        c->cancel_pend(pathAmount);
+        transactionPath[pathIndex].set_transaction_pended(false);
+    }
+
     bool sendingFailed = false;
     numOfAddedPaths--;
+    receivedAcceptedPaths--;
+    bool foundNewPath = false;
     for(int i = linkAttempts; i < maxNumOfTrees; i++) {
        int randNeighbourhood = neighbourhoodSet[linkAttempts];
        linkAttempts++;
        LinkedNode *n = dis->get_neighbourhood(randNeighbourhood)->get_upstream_linked_node(endNode, amount_per_path);
-       if(numOfAddedPaths < numOfPaths) {
-           if(amount_per_path < n->get_capacity()) {
+       if(numOfAddedPaths < numOfPaths and foundNewPath == false) {
+           if(n->check_capacity(amount_per_path)) {
+               foundNewPath = true;
                transactionPath[pathIndex].sending_path(amount_per_path, n, endNode, randNeighbourhood, transId);
-               double msgDelay = latency.calculate_delay_ms(true);
-               BasicMessage *m = TransactionMsg::path_initiation_request(&transactionPath[pathIndex]);
-               BufferedMessage * bufMsg = new BufferedMessage(m, transactionPath[pathIndex].get_path_outgate_towards_receiver(), msgDelay);
-               msgBuf->addMessage(bufMsg);
-               res += "Added a message";
-               numOfAddedPaths++;
            }
        } else {
            break;
@@ -147,8 +156,15 @@ std::string Transaction::transaction_new_neighbourhood(District *dis, MessageBuf
        sendingFailed = true;
     }
 
-    if(sendingFailed) {
-        kill_transaction(msgBuf);
+    numOfAddedPaths++;
+    if(not sendingFailed) {
+        double msgDelay = latency.calculate_delay_ms(true);
+        BasicMessage *m = TransactionMsg::path_initiation_request(&transactionPath[pathIndex]);
+        BufferedMessage * bufMsg = new BufferedMessage(m, transactionPath[pathIndex].get_path_outgate_towards_receiver(), msgDelay);
+        msgBuf->addMessage(bufMsg);
+        res += "Sending a new inquiry about a possible path";
+    } else {
+        kill_transaction(msgBuf, pathIndex);
         res += "No new path found";
     }
     return res;
@@ -165,83 +181,117 @@ std::string Transaction::report_error(MessageBuffer *msgBuf, BasicMessage *msg, 
     } else if(msg->getSubType() == TransactionMsg::ERROR) {
         handle_error(msgBuf, pathId);
     } else if(msg->getSubType() == TransactionMsg::FAILURE) {
-        kill_transaction(msgBuf);
+        res += kill_transaction(msgBuf, get_transaction_path_index(pathId));
+    } else if(msg->getSubType() == TransactionMsg::CLOSE_PATH) {
+        TransactionPath *transPath = get_trans_path(pathId);
+        if(transPath->get_transaction_pended()) {
+            LinkCapacity *c = transPath->get_link_towards_receiver()->get_link_capacity();
+            c->cancel_pend(transPath->get_amount());
+            transPath->set_transaction_pended(false);
+            transPath->reset();
+        } else {
+
+        }
+
+        if(transPath->get_execution_role() == TransactionPath::FORWARDER) {
+            res += close_path(msgBuf, transPath);
+        } else {
+
+        }
+        remove_transaction_path(transPath);
     }
 
     return res;
 }
 
-std::string Transaction::update_sender(MessageBuffer *msgBuf, int pathId) {
+std::string Transaction::update_sender(MessageBuffer *msgBuf, int pathId, District *dist) {
     std::string res = "";
     TransactionPath *transPath = &transactionPath[get_transaction_path_index(pathId)];
 
     if(transPath->get_state() == TransactionPath::QUERY_STATE) {
         receivedAcceptedPaths++;
-        s_pend_trans_handler(msgBuf);
+        res += s_pend_trans_handler(msgBuf);
+
+    // Capacity is locked once PEND_TRANASCTION is received
     } else if(transPath->get_state() == TransactionPath::PEND_TRANSACTION) {
-        s_push_trans_handler(msgBuf, transPath);
-
-
+        res += s_push_trans_handler(msgBuf, transPath);
     } else if(transPath->get_state() == TransactionPath::PUSH_TRANSACTION) {
-        transPath->set_done();
-        bool allPathsDone = true;
-        for(int i = 0; i <numOfAddedPaths; i++) {
-            if(not transactionPath[i].is_completed()) {
-                allPathsDone = false;
-            }
-        }
-        if(allPathsDone) {
-            state = Transaction::TRANSACTION_DEAD;
-        }
-
-    }
-    return res;
-}
-
-std::string Transaction::update_forwarder(MessageBuffer *msg, int pathId) {
-    std::string res = "";
-
-    int path = get_transaction_path_index(pathId);
-
-    if(path > -1) {
-        if(transactionPath[path].get_state() == TransactionPath::JOINING_PATH) {
-
-            create_message_towards_sender(msg, &transactionPath[path], TransactionPath::JOINED_PATH);
-
-        } else if(transactionPath[path].get_state() == TransactionPath::JOINED_PATH) {
-
-            create_message_towards_receiver(msg, &transactionPath[path], TransactionPath::PEND_TRANSACTION);
-
-        } else if(transactionPath[path].get_state() == TransactionPath::PEND_TRANSACTION) {
-            // Check and hold the capacity
-            // if
-            create_message_towards_sender(msg, &transactionPath[path], TransactionPath::PENDING_ACCEPTED);
-            // else
-            // close all paths due to capacity issues
-        } else if(transactionPath[path].get_state() == TransactionPath::PENDING_ACCEPTED) {
-
-            create_message_towards_receiver(msg, &transactionPath[path], TransactionPath::FINISH_TRANSACTION);
-
-        } else if(transactionPath[path].get_state() == TransactionPath::FINISH_TRANSACTION) {
-            create_message_towards_sender(msg, &transactionPath[path], TransactionPath::CLOSE_TRANSACTION);
-
-            transactionPath[path].set_done();
-            bool allPathsDone = true;
-            for(int i = 0; i <numOfAddedPaths; i++) {
-                if(not transactionPath[i].is_completed()) {
-                    allPathsDone = false;
+        LinkCapacity *c = transPath->get_link_towards_receiver()->get_link_capacity();
+        if(c->complete_transaction_upstream(transPath->get_amount())) {
+            transPath->set_transaction_pended(false);
+            res += "Transaction completed";
+            transPath->set_done();
+            int pathsFinished = 0;
+            for(int i = 0; i < numOfAddedPaths; i++) {
+                if(transactionPath[i].is_completed()) {
+                    pathsFinished++;
                 }
             }
-            if(allPathsDone) {
+            if(pathsFinished == numOfAddedPaths) {
+                res += "Transaction has been declared dead" + std::to_string(numOfAddedPaths);
                 state = Transaction::TRANSACTION_DEAD;
             }
+        } else {
+            // TODO remove
 
-
+            res += transaction_new_neighbourhood(dist, msgBuf, transPath->get_end_node_id(), transPath->get_amount(), get_transaction_path_index(pathId), transPath->get_transaction_id());
         }
     }
     return res;
 }
 
+std::string Transaction::update_forwarder(MessageBuffer *msgBuf, int pathId) {
+    std::string res = "";
+    int path = get_transaction_path_index(pathId);
+    TransactionPath *transPath = &transactionPath[path];
+
+    if(path > -1) {
+        if(transPath->get_state() == TransactionPath::JOINING_PATH) {
+            create_message_towards_sender(msgBuf, &transactionPath[path], TransactionPath::JOINED_PATH);
+
+        } else if(transPath->get_state() == TransactionPath::JOINED_PATH) {
+            LinkCapacity *c = transPath->get_link_towards_receiver()->get_link_capacity();
+            if(c->check_capacity(transPath->get_amount())) {
+                c->pend_transaction_upstream(transPath->get_amount());
+                transPath->set_transaction_pended(true);
+                create_message_towards_receiver(msgBuf, transPath, TransactionPath::PEND_TRANSACTION);
+            } else {
+                //Capacity can not be pended
+                close_path(msgBuf, transPath);
+                forwader_capacity_error(msgBuf, transPath);
+            }
+
+
+        } else if(transPath->get_state() == TransactionPath::PEND_TRANSACTION) {
+            create_message_towards_sender(msgBuf, transPath, TransactionPath::PENDING_ACCEPTED);
+        } else if(transPath->get_state() == TransactionPath::PENDING_ACCEPTED) {
+            create_message_towards_receiver(msgBuf, transPath, TransactionPath::FINISH_TRANSACTION);
+        } else if(transPath->get_state() == TransactionPath::FINISH_TRANSACTION) {
+            LinkCapacity *cSender = transPath->get_link_towards_receiver()->get_link_capacity();
+            if(cSender->complete_transaction_upstream(transPath->get_amount())) {
+                LinkCapacity *cReceiver = transPath->get_link_towards_sender()->get_link_capacity();
+                cReceiver->complete_transaction_downstream(transPath->get_amount());
+                transactionPath[path].set_transaction_pended(false);
+                create_message_towards_sender(msgBuf, transPath, TransactionPath::CLOSE_TRANSACTION);
+
+                transPath->set_done();
+                bool allPathsDone = true;
+                for(int i = 0; i <numOfAddedPaths; i++) {
+                    if(not transactionPath[i].is_completed()) {
+                        allPathsDone = false;
+                    }
+                }
+                if(allPathsDone) {
+                    state = Transaction::TRANSACTION_DEAD;
+                }
+            } else {
+                // TODO see if this occurs
+                // kill transaction
+            }
+        }
+    }
+    return res;
+}
 
 std::string Transaction::update_receiver(MessageBuffer *msg, int pathId) {
     std::string res = "";
@@ -263,11 +313,11 @@ std::string Transaction::update_receiver(MessageBuffer *msg, int pathId) {
                     transactionPath[i].set_state(TransactionPath::PENDING_ACCEPTED);
                     create_message_towards_sender(msg, &transactionPath[i], TransactionPath::PENDING_ACCEPTED);
                 }
-
             }
         } else if(transactionPath[path].get_state() == TransactionPath::PENDING_ACCEPTED) {
             transactionPath[path].set_state(TransactionPath::CLOSE_TRANSACTION);
-            create_message_towards_sender(msg, &transactionPath[path], TransactionPath::CLOSE_TRANSACTION);
+            LinkCapacity *c = transactionPath[path].get_link_towards_sender()->get_link_capacity();
+            c->complete_transaction_downstream(transactionPath[path].get_amount());
 
             transactionPath[path].set_done();
             bool allPathsDone = true;
@@ -276,16 +326,21 @@ std::string Transaction::update_receiver(MessageBuffer *msg, int pathId) {
                     allPathsDone = false;
                 }
             }
-            if(allPathsDone) {
+
+            receivedClosedTransactions++;
+            if(receivedClosedTransactions >= numOfAddedPaths) {
+                for(int i = 0; i < numOfAddedPaths; i++) {
+                    create_message_towards_sender(msg, &transactionPath[i], TransactionPath::CLOSE_TRANSACTION);
+                }
                 state = Transaction::TRANSACTION_DEAD;
             }
+
         }
 
     }
 
     return res;
 }
-
 
 std::string Transaction::forward_transaction(MessageBuffer *msg, int tId, TransactionPath *transPath) {
         std::string res = "";
@@ -302,7 +357,6 @@ std::string Transaction::forward_transaction(MessageBuffer *msg, int tId, Transa
         numOfAddedPaths++;
         return res;
 }
-
 
 std::string Transaction::receiving_transaction(MessageBuffer *msg, int tId, TransactionPath *transPath) {
     std::string res = "";
@@ -321,12 +375,9 @@ std::string Transaction::receiving_transaction(MessageBuffer *msg, int tId, Tran
     return res;
 }
 
-
 int Transaction::get_trans_id(void) {
     return transId;
 }
-
-
 
 TransactionPath * Transaction::get_trans_path(int pathId) {
     TransactionPath *path;
@@ -340,7 +391,6 @@ TransactionPath * Transaction::get_trans_path(int pathId) {
     return path;
 }
 
-
 bool Transaction::check_path_id(int pathId) {
     for(int i = 0; i < numOfAddedPaths; i++) {
         if(transactionPath[i].get_path_trans_id() == pathId) {
@@ -349,7 +399,6 @@ bool Transaction::check_path_id(int pathId) {
     }
     return false;
 }
-
 
 void Transaction::create_message_towards_sender(MessageBuffer *msg, TransactionPath *trans, int new_state) {
     BasicMessage *m;
@@ -365,14 +414,14 @@ void Transaction::create_message_towards_sender(MessageBuffer *msg, TransactionP
         if(state != Transaction::TRANSACTION_DEAD) {
             m = TransactionMsg::close_transaction(trans);
         }
-
     }
 
     BufferedMessage * bufMsg = new BufferedMessage(m, trans->get_path_outgate_towards_sender(), msgDelay);
     msg->addMessage(bufMsg);
+    // TODO
+    // Put this function in the caller of this function
     trans->set_state(new_state);
 }
-
 
 void Transaction::create_message_towards_receiver(MessageBuffer *msg, TransactionPath *trans, int new_state) {
     BasicMessage *m;
@@ -389,21 +438,34 @@ void Transaction::create_message_towards_receiver(MessageBuffer *msg, Transactio
     trans->set_state(new_state);
 }
 
-
 std::string Transaction::s_pend_trans_handler(MessageBuffer *msgBuf) {
     std::string res = "";
+    bool capacityError = false;
     if(receivedAcceptedPaths == numOfAddedPaths) {
-        for(int i = 0; i < numOfPaths; i++) {
+        for(int i = 0; i < numOfAddedPaths; i++) {
             TransactionPath *transPath = &transactionPath[i];
-            transPath->set_num_of_total_paths(numOfPaths);
-            transPath->set_state(TransactionPath::PEND_TRANSACTION);
+            LinkedNode *n = transPath->get_link_towards_receiver();
+            LinkCapacity *c = transPath->get_link_towards_receiver()->get_link_capacity();
+            if(c->pend_transaction_upstream(transPath->get_amount())) {
+                transPath->set_transaction_pended(true);
+                transPath->set_num_of_total_paths(numOfAddedPaths);
+                transPath->set_state(TransactionPath::PEND_TRANSACTION);
+                double msgDelay = latency.calculate_delay_ms(true);
+                BasicMessage *m = TransactionMsg::pend_transaction_request(transPath);
+                BufferedMessage * bufMsg = new BufferedMessage(m, transPath->get_path_outgate_towards_receiver(), msgDelay);
+                msgBuf->addMessage(bufMsg);
+                res += "Added a message";
 
-            double msgDelay = latency.calculate_delay_ms(true);
-            BasicMessage *m = TransactionMsg::pend_transaction_request(transPath);
-            BufferedMessage * bufMsg = new BufferedMessage(m, transPath->get_path_outgate_towards_receiver(), msgDelay);
-            msgBuf->addMessage(bufMsg);
-            res += "Added a message";
+            } else {
+                capacityError = true;
+                res += "Pending failed";
+            }
         }
+
+        if(capacityError) {
+            kill_transaction(msgBuf, 0);
+        }
+
     }
 
     return res;
@@ -417,6 +479,16 @@ std::string Transaction::s_push_trans_handler(MessageBuffer *msgBuf, Transaction
     BufferedMessage * bufMsg = new BufferedMessage(m, transPath->get_path_outgate_towards_receiver(), msgDelay);
     msgBuf->addMessage(bufMsg);
     res += "Added a message";
+
+    return res;
+}
+
+std::string Transaction::close_path(MessageBuffer *msgBuf, TransactionPath *transPath) {
+    std::string res = "";
+    double msgDelay = latency.calculate_delay_ms(true);
+    BasicMessage *m = TransactionMsg::close_path(transPath);
+    BufferedMessage * bufMsg = new BufferedMessage(m, transPath->get_path_outgate_towards_receiver(), msgDelay);
+    msgBuf->addMessage(bufMsg);
     return res;
 }
 
@@ -429,28 +501,28 @@ std::string Transaction::capacity_error(MessageBuffer *msgBuf, int pathId, Distr
     res += "state: " + std::to_string(s);
 
     if(s == TransactionPath::SENDER) {
-        res += s_capacity_error(msgBuf, p, pathIndex, dist);
+        res += transaction_new_neighbourhood(dist, msgBuf, p->get_end_node_id(), p->get_amount(), pathIndex, p->get_transaction_id());
     } else if(s == TransactionPath::FORWARDER or
                     s == TransactionPath::RECEIVER) {
-        double msgDelay = latency.calculate_delay_ms(true);
-        BasicMessage *m = TransactionMsg::capacity_error(p);
-        BufferedMessage * bufMsg = new BufferedMessage(m, p->get_path_outgate_towards_sender(), msgDelay);
-        msgBuf->addMessage(bufMsg);
-        if(numOfAddedPaths == 1) {
-            s = Transaction::TRANSACTION_DEAD;
-            res += "Transaction died";
-        } else {
-            //Remove path
-            res += "Path died, find new one";
-        }
+        forwader_capacity_error(msgBuf, p);
     }
 
     return res;
 }
 
+std::string Transaction::forwader_capacity_error(MessageBuffer *msgBuf, TransactionPath *transPath){
+    if(transPath->get_transaction_pended()) {
+        LinkCapacity *c = transPath->get_link_towards_receiver()->get_link_capacity();
+        c->cancel_pend(transPath->get_amount());
+        transPath->set_transaction_pended(false);
+    }
+    std::string res = "";
+    double msgDelay = latency.calculate_delay_ms(true);
+    BasicMessage *m = TransactionMsg::capacity_error(transPath);
+    BufferedMessage * bufMsg = new BufferedMessage(m, transPath->get_path_outgate_towards_sender(), msgDelay);
+    msgBuf->addMessage(bufMsg);
 
-std::string Transaction::s_capacity_error(MessageBuffer *msgBuf, TransactionPath *p, int pathIndex, District *dist) {
-    std::string res = transaction_new_neighbourhood(dist, msgBuf, p->get_end_node_id(), 1, pathIndex, p->get_transaction_id());
+    //remove_transaction_path(transPath);
     return res;
 }
 
@@ -484,22 +556,61 @@ std::string Transaction::handle_error(MessageBuffer *msgBuf, int pathId) {
     return res;
 }
 
-void Transaction::kill_transaction(MessageBuffer *msgBuf) {
+std::string Transaction::kill_transaction(MessageBuffer *msgBuf, int pathIndex) {
+    std::string res = "";
     if(state != Transaction::TRANSACTION_DEAD) {
-        state = Transaction::TRANSACTION_DEAD;
-        for(int i = 0; i < numOfAddedPaths; i++) {
-            if(transactionPath[i].get_execution_role() == TransactionPath::RECEIVER) {
-                break;
+
+        if(transactionPath[0].get_execution_role() == TransactionPath::SENDER) {
+            for(int i = 0; i < numOfAddedPaths; i++){
+                LinkCapacity *c = transactionPath[i].get_link_towards_receiver()->get_link_capacity();
+                if(transactionPath[i].is_completed()) {
+                    c->remove_capacity(transactionPath[i].get_amount());
+                } else if(transactionPath[i].get_transaction_pended()) {
+                    c->cancel_pend(transactionPath[i].get_amount());
+                    transactionPath[i].set_transaction_pended(false);
+                }
+                double msgDelay = latency.calculate_delay_ms(true);
+                BasicMessage *m = TransactionMsg::transaction_fail(&transactionPath[i]);
+                BufferedMessage * bufMsg = new BufferedMessage(m, transactionPath[i].get_path_outgate_towards_receiver(), msgDelay);
+                msgBuf->addMessage(bufMsg);
             }
-            double msgDelay = latency.calculate_delay_ms(true) * 4;
-            BasicMessage *m = TransactionMsg::transaction_fail(&transactionPath[i]);
-            BufferedMessage * bufMsg = new BufferedMessage(m, transactionPath[i].get_path_outgate_towards_receiver(), msgDelay);
+            state = Transaction::TRANSACTION_DEAD;
+        } else if(transactionPath[0].get_execution_role() == TransactionPath::RECEIVER) {
+            for(int i = 0; i < numOfAddedPaths; i++) {
+                if(transactionPath[i].is_completed()) {
+                    LinkCapacity *c = transactionPath[i].get_link_towards_sender()->get_link_capacity();
+                    c->remove_capacity(transactionPath[i].get_amount());
+                }
+            }
+
+            state = Transaction::TRANSACTION_DEAD;
+            return res;
+        } else if(transactionPath[pathIndex].get_execution_role() == TransactionPath::FORWARDER){
+            numOfAddedPaths--;
+            if(transactionPath[pathIndex].is_completed()) {
+                LinkCapacity *cUpstream = transactionPath[pathIndex].get_link_towards_receiver()->get_link_capacity();
+                cUpstream->remove_capacity(transactionPath[pathIndex].get_amount());
+
+                LinkCapacity *cDownstream = transactionPath[pathIndex].get_link_towards_sender()->get_link_capacity();
+                cDownstream->add_capacity(transactionPath[pathIndex].get_amount());
+            } else if(transactionPath[pathIndex].get_transaction_pended()) {
+                LinkCapacity *c = transactionPath[pathIndex].get_link_towards_receiver()->get_link_capacity();
+                c->cancel_pend(transactionPath[pathIndex].get_amount());
+                transactionPath[pathIndex].set_transaction_pended(false);
+            }
+
+            double msgDelay = latency.calculate_delay_ms(true);
+            BasicMessage *m = TransactionMsg::transaction_fail(&transactionPath[pathIndex]);
+            BufferedMessage * bufMsg = new BufferedMessage(m, transactionPath[pathIndex].get_path_outgate_towards_receiver(), msgDelay);
             msgBuf->addMessage(bufMsg);
+            // remove_transaction_path(&transactionPath[pathIndex]);
+            if(numOfAddedPaths == 0){
+                state = Transaction::TRANSACTION_DEAD;
+            }
         }
-
     }
+    return res;
 }
-
 
 int Transaction::get_transaction_path_index(int pathId) {
     int path = -1;
@@ -511,4 +622,29 @@ int Transaction::get_transaction_path_index(int pathId) {
     return path;
 }
 
+void Transaction::remove_transaction_path(TransactionPath *transPath) {
+    int index = -1;
+
+    for(int i = 0; i < numOfAddedPaths; i++) {
+        if(transactionPath[i].get_path_trans_id() == transPath->get_path_trans_id()) {
+            index = i;
+        }
+    }
+
+    if(numOfAddedPaths == 1) {
+        state = TRANSACTION_DEAD;
+        transactionPath[0].reset();
+        numOfAddedPaths--;
+    } else if(index > -1) {
+        if(index + 1 == numOfAddedPaths) {
+            transactionPath[index].reset();
+        } else {
+            for(int i = index; i < numOfAddedPaths - 1; i++) {
+                std::swap(transactionPath[i], transactionPath[i+1]);
+            }
+            transactionPath[numOfAddedPaths-1].reset();
+        }
+        numOfAddedPaths--;
+    }
+}
 

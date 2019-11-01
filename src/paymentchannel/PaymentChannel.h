@@ -18,33 +18,6 @@
 #include "./transaction/TransactionPath.h"
 #include "./transaction/TransactionMsg.h"
 
-// Struct that keeps track of which LinkedNodes currently a connection has been established with
-struct transaction_connection{
-    double amount;
-    // Is an Id for the whole transaction
-    int transId;
-    // Unique for every path
-    int pathTransId;
-    int pathsChecked;
-    int multiPathState;
-    int indexLinkedNode;
-    int edgeTowardsReceiver;
-    int edgeTowardsSender;
-    int endNode;
-    int state;
-    int neighbourhood;
-
-    LinkedNode *linkTowardsReceiver;
-    LinkedNode *linkTowardsSender;
-
-    int hopCount;
-    double fees;
-
-    int startTime_ms;
-    int endHTLC;
-
-};
-
 class PaymentChannel {
 
     public:
@@ -158,11 +131,9 @@ class PaymentChannel {
         Latency latency;
 
         int transactionConnectionIndex;
-        transaction_connection transactionConnections[3000];
 
         void handle_query_message(int, int, int, int, double, int);
         void handle_query_accept_message(TransactionPath*);
-
 
         void handle_transaction_push(int, int);
         void handle_transaction_push_reply(int);
@@ -177,12 +148,7 @@ class PaymentChannel {
         void handle_timeout_error(int);
         void handle_general_error(int);
 
-
         void update_message_buf(BasicMessage *, int);
-
-        int get_trans_conn_index(int, int);
-        void remove_transaction_via_index(int);
-        void remove_transaction(int);
 };
 
 #endif

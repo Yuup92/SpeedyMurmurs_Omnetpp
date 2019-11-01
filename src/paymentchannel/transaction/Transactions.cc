@@ -89,7 +89,6 @@ TransactionPath * Transactions::get_path(int transId, int pathId) {
     return p;
 }
 
-
 bool Transactions::remove_dead_transactions(void) {
     bool transactionRemoved = false;
     int k = 0;
@@ -126,7 +125,7 @@ bool Transactions::check_transId_exists(int transId, int &index) {
 
 bool Transactions::remove_transaction(int transId) {
     bool transactionFound = false;
-    if(currentNumberOfTransactions > 1) {
+    if(currentNumberOfTransactions > 0) {
         for(int i = 0; i < currentNumberOfTransactions; i++) {
             if(transactions[i].get_trans_id() == transId) {
                 transactionFound = true;
@@ -136,7 +135,6 @@ bool Transactions::remove_transaction(int transId) {
                         break;
                     }
                     std::swap(transactions[j], transactions[j+1]);
-
                 }
             }
         }

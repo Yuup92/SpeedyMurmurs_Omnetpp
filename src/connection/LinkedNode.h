@@ -42,8 +42,12 @@ class LinkedNode {
 
         int get_child(int);
 
+        //TODO
+        // Rename set_capacity
         void set_capacity(LinkCapacity*);
+        LinkCapacity* get_link_capacity(void);
         double get_capacity(void);
+        bool check_capacity(double);
 
         double get_virtual_capacity(void);
 
@@ -53,13 +57,6 @@ class LinkedNode {
 
         bool get_edge_towards_root(void);
         void set_edge_towards_root(bool);
-
-        bool pend_increase_transaction(double, int);
-        bool pend_decrease_transaction(double, int);
-
-        bool update_capacity(int);
-        bool update_capacity_increase(double);
-        bool update_capacity_decrease(double);
 
         void add_coordinates(BasicMessage*);
 

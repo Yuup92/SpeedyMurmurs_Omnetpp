@@ -96,7 +96,7 @@ BasicMessage * TransactionMsg::finish_transaction(TransactionPath *transaction) 
 
 BasicMessage * TransactionMsg::close_transaction(TransactionPath *transaction) {
     char msgname[40];
-    sprintf(msgname, "Finalize PaymentChannel");
+    sprintf(msgname, "Close PaymentChannel");
     BasicMessage *msg = new BasicMessage(msgname);
 
     msg->setType(TransactionMsg::MESSAGE_TYPE);
@@ -171,6 +171,20 @@ BasicMessage * TransactionMsg::transaction_fail(TransactionPath *transaction) {
 
     msg->setType(TransactionMsg::MESSAGE_TYPE);
     msg->setSubType(TransactionMsg::FAILURE);
+
+    msg->setTransactionId(transaction->get_transaction_id());
+    msg->setPathTransactionId(transaction->get_path_trans_id());
+
+    return msg;
+}
+
+BasicMessage * TransactionMsg::close_path(TransactionPath *transaction) {
+    char msgname[40];
+    sprintf(msgname, "CLOSE PATH");
+    BasicMessage *msg = new BasicMessage(msgname);
+
+    msg->setType(TransactionMsg::MESSAGE_TYPE);
+    msg->setSubType(TransactionMsg::CLOSE_PATH);
 
     msg->setTransactionId(transaction->get_transaction_id());
     msg->setPathTransactionId(transaction->get_path_trans_id());

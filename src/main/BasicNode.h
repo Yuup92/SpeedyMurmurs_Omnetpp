@@ -1,7 +1,6 @@
 #ifndef BASICNODE_H_
 #define BASICNODE_H_
 
-
 #include <stdio.h>
 #include <string.h>
 #include <omnetpp.h>
@@ -46,7 +45,7 @@ class BasicNode : public cSimpleModule
     protected:
         virtual void initialize() override;
         virtual void initialize_parameters();
-
+        virtual void finish() override;
 
         virtual void start_message_timer();
 
@@ -90,6 +89,7 @@ class BasicNode : public cSimpleModule
         void district_initialization(void);
         void IO_initialization(void);
         void payment_channel_initialization(void);
+        void initialize_stats(void);
         void leaderInitialization(void);
 
         void internal_message_handling(void);
@@ -105,6 +105,24 @@ class BasicNode : public cSimpleModule
         void sendDistrictMessages(void);
 
         void run_simulation(void);
+
+        /**
+         * Statistic Collection Variables
+         */
+
+        void check_stat_flags(void);
+
+
+        /**
+         * Message Statistics
+         */
+        long msgSendCount;
+        long sptMsgCount; //spanning tree msgs
+        long pcMsgCount; //payment channel msgs
+
+        cOutVector msgSendCountVector;
+        cOutVector sptMsgCountVector;
+        cOutVector pcMsgCountVector;
 };
 
 Define_Module(BasicNode);
