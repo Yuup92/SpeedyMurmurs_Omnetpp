@@ -45,10 +45,13 @@
  paymentchannel/././transaction/./../../connection/District.h \
  paymentchannel/././transaction/./../../utilities/RandHelper.h \
  paymentchannel/././transaction/./../../latency/Latency.h \
+ paymentchannel/././transaction/./../../stat/Statistics.h \
  paymentchannel/././transaction/../../msg/outgoing_buf/MessageBuffer.h \
  paymentchannel/././transaction/../../connection/District.h \
+ paymentchannel/././transaction/../../stat/Statistics.h \
  paymentchannel/././transaction/TransactionPath.h \
- paymentchannel/././transaction/TransactionMsg.h
+ paymentchannel/././transaction/TransactionMsg.h \
+ paymentchannel/./../stat/Statistics.h
 
 paymentchannel/./PaymentChannel.h:
 
@@ -142,10 +145,16 @@ paymentchannel/././transaction/./../../utilities/RandHelper.h:
 
 paymentchannel/././transaction/./../../latency/Latency.h:
 
+paymentchannel/././transaction/./../../stat/Statistics.h:
+
 paymentchannel/././transaction/../../msg/outgoing_buf/MessageBuffer.h:
 
 paymentchannel/././transaction/../../connection/District.h:
 
+paymentchannel/././transaction/../../stat/Statistics.h:
+
 paymentchannel/././transaction/TransactionPath.h:
 
 paymentchannel/././transaction/TransactionMsg.h:
+
+paymentchannel/./../stat/Statistics.h:

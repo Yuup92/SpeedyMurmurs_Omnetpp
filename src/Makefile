@@ -43,9 +43,11 @@ OBJS = \
     $O/latency/types/CryptographicLatency.o \
     $O/latency/types/NetworkLatency.o \
     $O/main/BasicNode.o \
+    $O/main/TransactionEvent.o \
     $O/msg/outgoing_buf/BufferedMessage.o \
     $O/msg/outgoing_buf/MessageBuffer.o \
     $O/output/FileWriter.o \
+    $O/output/InputReader.o \
     $O/output/SaveState.o \
     $O/paymentchannel/PaymentChannel.o \
     $O/paymentchannel/concurrency/Concurrency.o \
@@ -54,6 +56,7 @@ OBJS = \
     $O/paymentchannel/transaction/TransactionMsg.o \
     $O/paymentchannel/transaction/TransactionPath.o \
     $O/paymentchannel/transaction/Transactions.o \
+    $O/stat/Statistics.o \
     $O/sync/NodeClock.o \
     $O/utilities/RandHelper.o \
     $O/msg/basicmsg_m.o

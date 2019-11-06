@@ -34,9 +34,10 @@ void PaymentChannel::set_concurrency_type(int concurrency) {
     concurrencyType = concurrency;
 }
 
-//void PaymentChannel::set_connected_neighbours(Neighbours *n) {
-//    connectedNeighbours = n;
-//}
+void PaymentChannel::set_stats(Statistics *s) {
+    stats = s;
+    transactions.set_stats(s);
+}
 
 void PaymentChannel::set_district(District *d) {
     district = d;
@@ -46,8 +47,12 @@ District * PaymentChannel::get_district(void){
     return district;
 }
 
-int PaymentChannel::get_current_transaction_id(void) {
-    return currentTransactionId;
+int PaymentChannel::get_current_transactions_amount(void) {
+    return transactions.get_current_trans();
+}
+
+int PaymentChannel::get_current_transaction_size(void) {
+    return transactions.get_trans_map_size();
 }
 
 int PaymentChannel::get_current_transaction_index(void) {
@@ -90,6 +95,10 @@ double PaymentChannel::get_crypto_delay(void) {
     return latency.get_crypto_delay();
 }
 
+void PaymentChannel::check_for_dead_transactions(void) {
+    bool rm = transactions.remove_dead_transactions();
+}
+
 std::string PaymentChannel::send(int endNode, double amount) {
 
     // Get a random Neighbourhood
@@ -108,9 +117,6 @@ std::string PaymentChannel::multi_path_send(int endNode, double amount, int numb
 
     int transactionId = rand();
 
-    // TODO make this a double
-    double partialAmount = amount/numberOfPaths;
-
     std::string res = "";
     res = transactions.add_send_transaction(district, &msgBuf, amount, endNode, numberOfPaths);
 
@@ -120,64 +126,71 @@ std::string PaymentChannel::multi_path_send(int endNode, double amount, int numb
 }
 
 std::string PaymentChannel::handle_message(BasicMessage *msg, int outgoingEdge) {
-
     std::string res = "";
-//    res += "  curTrans: ";
-//    res += std::to_string(transactions.get_current_trans()) + "  \nchecked id" + std::to_string(msg->getTransactionId());
 
+    // First time transaction coming in
     if(msg->getSubType() == TransactionMsg::INI_PATH_QUERY) {
         handle_query_message(outgoingEdge, msg->getTransactionId(), msg->getPathTransactionId(),
                              msg->getEndNodeId(), msg->getAmount(),
                              msg->getNeighbourhoodIndex());
-    } else {
-        if(transactions.check_for_trans_id(msg->getTransactionId())) {
 
-            Transaction *trans = transactions.get_transaction(msg->getTransactionId());
-            int pathId = msg->getPathTransactionId();
-            int role = trans->get_trans_path(pathId)->get_execution_role();
-            if((msg->getSubType() >> 6) == (TransactionMsg::ERROR >> 6)) {
-                res += "Received error";
-                res += trans->report_error(&msgBuf, msg, pathId, district);
-            } else if(role == TransactionPath::SENDER) {
-                res += trans->update_sender(&msgBuf, pathId, district);
-            } else if(role == TransactionPath::RECEIVER) {
-                trans->update_receiver(&msgBuf, pathId);
-            } else if(role == TransactionPath::FORWARDER) {
-                res = trans->update_forwarder(&msgBuf, pathId);
+    } else {
+        // Checking if transaction already has been mapped
+        if(transactions.check_for_existing_transaction(msg->getTransactionId())) {
+            Transaction *trans = transactions.get_transaction_from_map(msg->getTransactionId());
+            if(trans->get_state() == Transaction::TRANSACTION_ALIVE) {
+                if((msg->getSubType() >> 6) == (TransactionMsg::ERROR >> 6)) {
+                   res += trans->report_error(&msgBuf, msg, msg->getPathTransactionId(), district);
+               } else if(trans->get_role() == TransactionPath::SENDER) {
+                   res += trans->update_sender(&msgBuf, msg->getPathTransactionId(), district);
+               } else if(trans->get_role() == TransactionPath::FORWARDER) {
+                   res += trans->update_forwarder(&msgBuf, msg->getPathTransactionId());
+               } else if(trans->get_role() == TransactionPath::RECEIVER) {
+                   res += trans->update_receiver(&msgBuf, msg->getPathTransactionId());
+               }
+            } else {
+                res += "Transaction is dead";
             }
-            transactions.remove_dead_transactions();
 
         } else {
-            res += "Msg received transactionId not known";
+            // Do something? Do nothing?
+            res += "Could not find transaction in map";
+            return res;
         }
     }
+    bool rm = transactions.remove_dead_transactions();
 
     return res;
 }
 
-void PaymentChannel::handle_query_message(int outgoingEdge, int transId, int pathTransId, int nId, double amount, int neighbourhood) {
+void PaymentChannel::handle_query_message(int outgoingEdge, int transId, int pathId, int nId, double amount, int neighbourhood) {
     // Message has found receiver
     if(nodeId == nId) {
-
         LinkedNode *sN = district->get_neighbourhood(neighbourhood)->get_downstream_linked_node(outgoingEdge);
 
         TransactionPath transPath;
-        transPath.receiving_path(amount, sN, neighbourhood, transId, pathTransId);
+        transPath.receiving_path(amount, sN, neighbourhood, transId, pathId);
+        transactions.new_receiving_transaction(&msgBuf, transId, &transPath);
 
-        transactions.add_receiving_transaction(&msgBuf, transId, &transPath);
         transactionConnectionIndex++;
         numberOfTotalTransactions++;
 
     // Message needs to be forwarded
     } else {
-        LinkedNode *sN = district->get_neighbourhood(neighbourhood)->get_downstream_linked_node(outgoingEdge);
-        LinkedNode *rN = district->get_neighbourhood(neighbourhood)->get_upstream_linked_node(nId, amount);
+        LinkedNode *receivingNode = district->get_neighbourhood(neighbourhood)->get_upstream_linked_node(nId, amount);
+        LinkedNode *sendingNode = district->get_neighbourhood(neighbourhood)->get_downstream_linked_node(outgoingEdge);
 
-        LinkCapacity *c = rN->get_link_capacity();
+        LinkCapacity *c = receivingNode->get_link_capacity();
         if(c->check_capacity(amount)) {
+
             TransactionPath transPath;
-            transPath.forwarding_path(amount, rN, sN, nId, neighbourhood, transId, pathTransId);
-            transactions.add_forward_transaction(&msgBuf, transId, &transPath);
+            transPath.forwarding_path(amount, receivingNode, sendingNode, nId, neighbourhood, transId, pathId);
+
+            if(transactions.check_for_existing_transaction(transId)) {
+                transactions.add_path_to_transaction_id(&msgBuf, transId, &transPath);
+            } else {
+                transactions.new_forwarding_transaction(&msgBuf, transId, &transPath);
+            }
 
             transactionConnectionIndex++;
             numberOfTotalTransactions++;
@@ -186,7 +199,7 @@ void PaymentChannel::handle_query_message(int outgoingEdge, int transId, int pat
             return;
         } else {
             double msgDelay = latency.calculate_delay_ms(true);
-            BasicMessage *m = TransactionMsg::capacity_error(transId, pathTransId);
+            BasicMessage *m = TransactionMsg::capacity_error(transId, pathId);
             BufferedMessage * bufMsg = new BufferedMessage(m, outgoingEdge, msgDelay);
             msgBuf.addMessage(bufMsg);
             return;

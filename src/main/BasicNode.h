@@ -6,6 +6,8 @@
 #include <omnetpp.h>
 #include <cstdlib>
 
+#include "./TransactionEvent.h"
+
 #include "../paymentchannel/PaymentChannel.h"
 #include "../msg/basicmsg_m.h"
 #include "../sync/NodeClock.h"
@@ -20,6 +22,9 @@
 
 #include "../output/FileWriter.h"
 #include "../output/SaveState.h"
+#include "../output/InputReader.h"
+
+#include "../stat/Statistics.h"
 
 using namespace omnetpp;
 
@@ -59,6 +64,7 @@ class BasicNode : public cSimpleModule
 
         NodeClock clock;
         int nodeId;
+        double endTransactionTime;
 
         int spanningTreeSearchIndex;
         int coordinateMsgsSent;
@@ -78,8 +84,17 @@ class BasicNode : public cSimpleModule
 
         FileWriter fileWriter;
         SaveState saveState;
+        InputReader inputReader;
+
+        bool simulationSetup;
+        int transEventIndex;
+        int numOfTransEvents;
+        double startTimeTransactions;
+        double endOfTransactions;
+        TransactionEvent transactionEvent[15000];
 
         cMessage *event;    // pointer to the event object which will be used for timing
+        cMessage *startTransaction;
         cMessage *broadcast_tree; // variable to remember the message until its sent back
 
         virtual void sendMessagesFromBuffer(void);
@@ -105,6 +120,7 @@ class BasicNode : public cSimpleModule
         void sendDistrictMessages(void);
 
         void run_simulation(void);
+        void set_timer_transactions(void);
 
         /**
          * Statistic Collection Variables
@@ -116,6 +132,8 @@ class BasicNode : public cSimpleModule
         /**
          * Message Statistics
          */
+        Statistics stats;
+
         long msgSendCount;
         long sptMsgCount; //spanning tree msgs
         long pcMsgCount; //payment channel msgs

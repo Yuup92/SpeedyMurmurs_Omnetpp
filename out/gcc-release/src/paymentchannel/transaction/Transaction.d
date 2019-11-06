@@ -1,9 +1,9 @@
 ../out/gcc-release/src/paymentchannel/transaction/Transaction.o: \
  paymentchannel/transaction/Transaction.cc \
  paymentchannel/transaction/./Transaction.h \
+ /home/yuup/TU_Delft/Thesis/OMNeT/omnetpp-5.4.1/include/omnetpp.h \
  paymentchannel/transaction/././TransactionPath.h \
  paymentchannel/transaction/././../../connection/LinkedNode.h \
- /home/yuup/TU_Delft/Thesis/OMNeT/omnetpp-5.4.1/include/omnetpp.h \
  paymentchannel/transaction/././../../connection/../connection/capacity/LinkCapacity.h \
  paymentchannel/transaction/././../../connection/../connection/capacity/../../paymentchannel/concurrency/Concurrency.h \
  paymentchannel/transaction/././../../connection/../msg/outgoing_buf/MessageBuffer.h \
@@ -35,15 +35,16 @@
  paymentchannel/transaction/./../../latency/Latency.h \
  paymentchannel/transaction/./../../latency/./types/NetworkLatency.h \
  paymentchannel/transaction/./../../latency/./types/ComputerLatency.h \
- paymentchannel/transaction/./../../latency/./types/CryptographicLatency.h
+ paymentchannel/transaction/./../../latency/./types/CryptographicLatency.h \
+ paymentchannel/transaction/./../../stat/Statistics.h
 
 paymentchannel/transaction/./Transaction.h:
+
+/home/yuup/TU_Delft/Thesis/OMNeT/omnetpp-5.4.1/include/omnetpp.h:
 
 paymentchannel/transaction/././TransactionPath.h:
 
 paymentchannel/transaction/././../../connection/LinkedNode.h:
-
-/home/yuup/TU_Delft/Thesis/OMNeT/omnetpp-5.4.1/include/omnetpp.h:
 
 paymentchannel/transaction/././../../connection/../connection/capacity/LinkCapacity.h:
 
@@ -108,3 +109,5 @@ paymentchannel/transaction/./../../latency/./types/NetworkLatency.h:
 paymentchannel/transaction/./../../latency/./types/ComputerLatency.h:
 
 paymentchannel/transaction/./../../latency/./types/CryptographicLatency.h:
+
+paymentchannel/transaction/./../../stat/Statistics.h:

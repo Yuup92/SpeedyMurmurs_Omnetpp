@@ -88,6 +88,9 @@ bool LinkCapacity::complete_transaction_upstream(double amount) {
 void LinkCapacity::cancel_pend(double amount) {
     virtualCapacity = virtualCapacity + amount;
     numOfPaymentsPending--;
+    if(numOfPaymentsPending == 0) {
+        virtualCapacity = capacity;
+    }
 }
 
 void LinkCapacity::add_capacity(double amount) {

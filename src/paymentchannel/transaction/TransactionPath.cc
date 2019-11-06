@@ -12,6 +12,7 @@ TransactionPath::TransactionPath(){
     numOfPathsForTransaction = 0;
     done = false;
     pendTransaction = false;
+    pathClosed = false;
 }
 
 void TransactionPath::reset(void) {
@@ -26,6 +27,7 @@ void TransactionPath::reset(void) {
     numOfPathsForTransaction = 0;
     done = false;
     pendTransaction = false;
+    pathClosed = false;
 }
 
 void TransactionPath::sending_path(double a, LinkedNode *rN, int endN, int n, int transId) {
@@ -181,6 +183,18 @@ bool TransactionPath::is_completed() {
 
 void TransactionPath::set_done(void) {
     done = true;
+}
+
+void TransactionPath::set_completed(bool v) {
+    done = v;
+}
+
+void TransactionPath::close_path(void) {
+    pathClosed = true;
+}
+
+bool TransactionPath::is_path_closed(void) {
+    return pathClosed;
 }
 
 void TransactionPath::set_sending_link(LinkedNode *sN) {

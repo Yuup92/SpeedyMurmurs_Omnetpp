@@ -1,7 +1,7 @@
 ../out/gcc-release/src/main/BasicNode.o: main/BasicNode.cc \
  main/./BasicNode.h \
  /home/yuup/TU_Delft/Thesis/OMNeT/omnetpp-5.4.1/include/omnetpp.h \
- main/./../paymentchannel/PaymentChannel.h \
+ main/././TransactionEvent.h main/./../paymentchannel/PaymentChannel.h \
  main/./../paymentchannel/../paymentchannel/concurrency/ConcurrencyBlocking.h \
  main/./../paymentchannel/../connection/District.h \
  main/./../paymentchannel/../connection/./LinkedNode.h \
@@ -46,12 +46,15 @@
  main/./../paymentchannel/./transaction/./../../connection/District.h \
  main/./../paymentchannel/./transaction/./../../utilities/RandHelper.h \
  main/./../paymentchannel/./transaction/./../../latency/Latency.h \
+ main/./../paymentchannel/./transaction/./../../stat/Statistics.h \
  main/./../paymentchannel/./transaction/../../msg/outgoing_buf/MessageBuffer.h \
  main/./../paymentchannel/./transaction/../../connection/District.h \
+ main/./../paymentchannel/./transaction/../../stat/Statistics.h \
  main/./../paymentchannel/./transaction/TransactionPath.h \
  main/./../paymentchannel/./transaction/TransactionMsg.h \
- main/./../msg/basicmsg_m.h main/./../sync/NodeClock.h \
- main/./../connection/District.h main/./../connection/Neighbours.h \
+ main/./../paymentchannel/../stat/Statistics.h main/./../msg/basicmsg_m.h \
+ main/./../sync/NodeClock.h main/./../connection/District.h \
+ main/./../connection/Neighbours.h \
  main/./../msg/outgoing_buf/BufferedMessage.h \
  main/./../alg/leader_election/LeaderElection.h \
  main/./../alg/leader_election/../../msg/outgoing_buf/MessageBuffer.h \
@@ -60,11 +63,15 @@
  main/./../output/SaveState.h main/./../output/../connection/District.h \
  main/./../output/../connection/Neighbours.h \
  main/./../output/../connection/LinkedNode.h \
- main/./../output/../connection/capacity/LinkCapacity.h
+ main/./../output/../connection/capacity/LinkCapacity.h \
+ main/./../output/InputReader.h \
+ main/./../output/../main/TransactionEvent.h main/./../stat/Statistics.h
 
 main/./BasicNode.h:
 
 /home/yuup/TU_Delft/Thesis/OMNeT/omnetpp-5.4.1/include/omnetpp.h:
+
+main/././TransactionEvent.h:
 
 main/./../paymentchannel/PaymentChannel.h:
 
@@ -156,13 +163,19 @@ main/./../paymentchannel/./transaction/./../../utilities/RandHelper.h:
 
 main/./../paymentchannel/./transaction/./../../latency/Latency.h:
 
+main/./../paymentchannel/./transaction/./../../stat/Statistics.h:
+
 main/./../paymentchannel/./transaction/../../msg/outgoing_buf/MessageBuffer.h:
 
 main/./../paymentchannel/./transaction/../../connection/District.h:
 
+main/./../paymentchannel/./transaction/../../stat/Statistics.h:
+
 main/./../paymentchannel/./transaction/TransactionPath.h:
 
 main/./../paymentchannel/./transaction/TransactionMsg.h:
+
+main/./../paymentchannel/../stat/Statistics.h:
 
 main/./../msg/basicmsg_m.h:
 
@@ -193,3 +206,9 @@ main/./../output/../connection/Neighbours.h:
 main/./../output/../connection/LinkedNode.h:
 
 main/./../output/../connection/capacity/LinkCapacity.h:
+
+main/./../output/InputReader.h:
+
+main/./../output/../main/TransactionEvent.h:
+
+main/./../stat/Statistics.h:

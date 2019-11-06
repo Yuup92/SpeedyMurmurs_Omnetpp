@@ -75,8 +75,12 @@ public:
     bool get_transaction_pended(void);
     void set_transaction_pended(bool);
 
-    bool is_completed();
+    bool is_completed(void);
     void set_done(void);
+    void set_completed(bool);
+
+    void close_path(void);
+    bool is_path_closed(void);
 
     void set_sending_link(LinkedNode *);
     LinkedNode * get_link_towards_sender(void);
@@ -101,6 +105,7 @@ private:
 
     bool pendTransaction;
     bool done;
+    bool pathClosed;
 
     LinkedNode *linkTowardsSender;
     LinkedNode *linkTowardsReceiver;

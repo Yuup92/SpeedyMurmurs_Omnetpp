@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <omnetpp.h>
+#include <math.h>
 
 #include "../paymentchannel/concurrency/ConcurrencyBlocking.h"
 #include "../connection/District.h"
@@ -17,6 +18,7 @@
 #include "./transaction/Transactions.h"
 #include "./transaction/TransactionPath.h"
 #include "./transaction/TransactionMsg.h"
+#include "../stat/Statistics.h"
 
 class PaymentChannel {
 
@@ -62,12 +64,14 @@ class PaymentChannel {
 
         void set_node_id(int);
         void set_concurrency_type(int);
-        void set_connected_neighbours(Neighbours *);
+        void set_stats(Statistics*);
 
         void set_district(District *);
         District *get_district(void);
 
-        int get_current_transaction_id(void);
+        int get_current_transactions_amount(void);
+
+        int get_current_transaction_size(void);
         int get_current_transaction_index(void);
 
         int get_num_completed_transactions(void);
@@ -81,6 +85,8 @@ class PaymentChannel {
         double get_network_delay(void);
         double get_os_delay(void);
         double get_crypto_delay(void);
+
+        void check_for_dead_transactions(void);
 
         // Message handling
         std::string handle_message(BasicMessage *, int);
@@ -131,6 +137,8 @@ class PaymentChannel {
         Latency latency;
 
         int transactionConnectionIndex;
+
+        Statistics *stats;
 
         void handle_query_message(int, int, int, int, double, int);
         void handle_query_accept_message(TransactionPath*);

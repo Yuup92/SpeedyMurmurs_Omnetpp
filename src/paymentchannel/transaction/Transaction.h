@@ -4,6 +4,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <unordered_map>
+#include <omnetpp.h>
+using namespace std;
 
 #include "./TransactionPath.h"
 #include "./TransactionMsg.h"
@@ -18,6 +21,8 @@
 
 #include "../../latency/Latency.h"
 
+#include "../../stat/Statistics.h"
+
 class Transaction {
 
     public:
@@ -29,35 +34,47 @@ class Transaction {
         static const int TRANSACTION_DEAD = 500;
         static const int TRANSACTION_ASLEEP = 150;
 
+        static const int TRANSACTION_ALIVE_TIME = 50;//s
+
         // RECEIVER
 
         Transaction();
+        void set_stats(Statistics *);
         void reset(void);
         void set_amount(double);
+        double get_amount(void);
         int get_state(void);
+        int get_role(void);
 
         std::string start_transaction(District*, MessageBuffer*, int, int, int);
-        std::string transaction_new_neighbourhood(District*, MessageBuffer*, int, int, int, int);
+        std::string transaction_new_neighbourhood(District*, MessageBuffer*, int, int, TransactionPath*, int);
         std::string report_error(MessageBuffer*, BasicMessage*, int, District*);
 
         std::string update_sender(MessageBuffer*, int, District*);
         std::string update_forwarder(MessageBuffer*, int);
         std::string update_receiver(MessageBuffer*, int);
 
-        std::string forward_transaction(MessageBuffer*, int, TransactionPath*);
-        std::string receiving_transaction(MessageBuffer*, int, TransactionPath*);
-        // void start_transaction(double, int, LinkedNode**, int, int*);
+        std::string new_foward_transaction(MessageBuffer*, int, TransactionPath*);
+        std::string add_new_forward_path(MessageBuffer*, TransactionPath*);
 
+        std::string new_receiving_transaction(MessageBuffer*, int, TransactionPath*);
+        std::string add_new_receiving_path(MessageBuffer*, int, TransactionPath*);
 
         int get_trans_id(void);
-        TransactionPath * get_trans_path(int);
+        int get_death_counter(void);
+        int increment_death_counter(void);
+
+        void check_alive_time(void);
 
     private:
 
-        TransactionPath transactionPath[MAXPATHS];
-        District *d;
+        unordered_map<int, TransactionPath*> transPathMap;
+        District *district;
 
         int state;
+        int role;
+        int deathCounter;
+
 
         int numOfAddedPaths;
         double amount;
@@ -69,8 +86,14 @@ class Transaction {
 
         int linkAttempts;
 
+        // Statistical Variables:
+        int completedTransactions;
+
         // Sender Variable
         int receivedAcceptedPaths;
+        int sentClosedPaths;
+        int receivedClosedPaths;
+
 
         // Receiver Variables
         int receivedPendingPaths;
@@ -82,26 +105,33 @@ class Transaction {
         int lengthComplementNArray;
 
         Latency latency;
+        simtime_t transactionAliveTime;
 
-        bool check_path_id(int);
+        Statistics *stats;
+
         void create_message_towards_sender(MessageBuffer*, TransactionPath*, int);
         void create_message_towards_receiver(MessageBuffer*, TransactionPath*, int);
 
-        std::string s_pend_trans_handler(MessageBuffer*);
-        std::string s_push_trans_handler(MessageBuffer*, TransactionPath*);
+        std::string sender_pend_capacities(MessageBuffer*);
+        std::string sender_push_transaction(MessageBuffer*, TransactionPath*);
+        std::string sender_close_transaction(TransactionPath*);
 
         std::string close_path(MessageBuffer*, TransactionPath*);
-        std::string capacity_error(MessageBuffer*, int, District*);
+        std::string capacity_error(MessageBuffer*, TransactionPath*, District*);
         std::string forwader_capacity_error(MessageBuffer*, TransactionPath*);
 
-        std::string timeout_error(MessageBuffer*, int);
-        std::string handle_error(MessageBuffer*, int);
+        std::string timeout_error(MessageBuffer*, TransactionPath*);
+        std::string handle_error(MessageBuffer*, TransactionPath*);
 
-        std::string kill_transaction(MessageBuffer*, int);
+        std::string kill_transaction(MessageBuffer*, TransactionPath*);
 
         int get_transaction_path_index(int);
 
         void remove_transaction_path(TransactionPath*);
+
+        bool check_for_existing_path_id(int);
+        TransactionPath* get_trans_path_from_map(int);
+
 };
 
 #endif
