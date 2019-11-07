@@ -89,9 +89,10 @@ class BasicNode : public cSimpleModule
         bool simulationSetup;
         int transEventIndex;
         int numOfTransEvents;
+        double periodicUpdate;
         double startTimeTransactions;
         double endOfTransactions;
-        TransactionEvent transactionEvent[15000];
+        TransactionEvent transactionEvent[1000];
 
         cMessage *event;    // pointer to the event object which will be used for timing
         cMessage *startTransaction;

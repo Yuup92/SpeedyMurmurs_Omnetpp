@@ -56,7 +56,6 @@ class Neighbours
         int * get_vector_coordinates(void);
         int get_length_neighbourhood_coordinates(void);
 
-
         void add_capacities_to_linked_nodes(LinkCapacity*, int);
 
         bool check_capacity(int, double);

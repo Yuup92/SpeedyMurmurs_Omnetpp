@@ -156,6 +156,5 @@ std::string LinkCapacity::to_file(void) {
     res += std::to_string(numOfPayments) + ",";
     res += std::to_string(numOfPaymentsPending) + ",";
 
-
     return res;
 }

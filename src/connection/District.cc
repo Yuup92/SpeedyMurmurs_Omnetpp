@@ -8,7 +8,7 @@ void District::set_num_of_connections(int numConn) {
     numberOfConnections = numConn;
     for(int i = 0; i < numberOfConnections; i++) {
         linkCapacities[i].set_outgate(i);
-        linkCapacities[i].set_current_capacity(100);
+        linkCapacities[i].set_current_capacity(1000);
     }
 }
 

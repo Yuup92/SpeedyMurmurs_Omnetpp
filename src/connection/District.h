@@ -14,7 +14,7 @@ class District {
 
     public:
         static const int NUM_OF_TREES = 10;
-        static const int MAXCONNECTIONS = 100;
+        static const int MAXCONNECTIONS = 1000;
 
 
         District();

@@ -15,11 +15,12 @@ BasicNode::BasicNode()
     simulationSetup = false;
 
     transEventIndex = 0;
+    periodicUpdate = 0;
 }
 
 BasicNode::~BasicNode()
 {
-    cancelAndDelete(event);
+//    cancelAndDelete(event);
     delete broadcast_tree;
 }
 
@@ -48,10 +49,16 @@ void BasicNode::initialize_parameters()
     numOfTransEvents = inputReader.read_transaction_file(&transactionEvent[0], endTransactionTime);
 
 
-    for(int i = 0; i < numOfTransEvents; i++) {
-        EV << "Sender: " << nodeId << " " << transactionEvent[i].get_string();
 
+    if(numOfTransEvents == -2) {
+        EV << "CANT OPEN TRANSACTIONS.TXT \n";
+    } else {
+        EV << "node: " << nodeId << " has num of transactions: " << numOfTransEvents << "\n";
     }
+
+//    for(int i = 0; i < numOfTransEvents; i++) {
+//        EV << "Sender: " << nodeId << " " << transactionEvent[i].get_string();
+//    }
 
     if(BasicNode::RUN_SPANNINGTREE) {
         state = BasicNode::SPANNING_TREE_STATE;
@@ -148,15 +155,6 @@ void BasicNode::handleMessage(cMessage *msg) {
         delete msg;
         internal_message_handling();
 
-        EV << "NodeId: " << nodeId << " has capacities:\n ";
-
-        LinkCapacity *cp = district.get_all_link_capacities();
-
-        for(int i = 0; i < gateSize("out"); i++) {
-            std::string res = cp[i].to_file();
-            EV << res <<"\n";
-        }
-        EV << "numofTrans: " << paymentChannel.get_current_transaction_size() << "\n";
 
     } else if(msg == startTransaction) {
 
@@ -181,52 +179,63 @@ void BasicNode::internal_message_handling(void) {
 
     if(state == BasicNode::SPANNING_TREE_STATE) {
         internal_spanning_tree_handling();
-        // EV << "Node: " << nodeId << " Spanning Tree";
     } else if(state == BasicNode::COORDINATE_SHARING_STATE) {
-        // EV << "Node: " << nodeId << " RUNNING COORDINATE_SHARING";
         check_coordinate_handling();
-
     } else if(state == BasicNode::SIMULATION_STATE) {
+
+        if(simTime().dbl() > periodicUpdate) {
+            EV << nodeId << "," << stats.transactionsCompleted << "\n";
+            periodicUpdate += 50;
+        }
+
         if(simulationSetup == false) {
             startTimeTransactions = simTime().dbl();
-            EV << "Start time simulation: " << startTimeTransactions << "\n";
             set_timer_transactions();
             endTransactionTime = endTransactionTime + startTimeTransactions;
+            periodicUpdate = startTimeTransactions + 50;
             simulationSetup = true;
+
+
+            LinkCapacity *cp = district.get_all_link_capacities();
+
+            int s = inputReader.read_capacity_file(nodeId, gateSize("out"), cp);
+
+            EV << "NodeId: " << nodeId << " has capacities changed: " << s<< " current caps:\n";
+
+
+            for(int i = 0; i < gateSize("out"); i++) {
+                std::string res = cp[i].to_file();
+                EV << res <<"\n";
+            }
+            EV << "numofTrans: " << paymentChannel.get_current_transaction_size() << "\n";
+
         } else {
             paymentChannel.check_for_dead_transactions();
-            EV << "checking for dead transactions\n";
-
             if(simTime().dbl() + 70 > endTransactionTime) {
                 state = BasicNode::FINISHED_STATE;
             }
         }
-
     }
 
 }
 
 void BasicNode::internal_spanning_tree_handling(void) {
     spanningTrees[spanningTreeSearchIndex].check_queued_messages();
-
     if(spanningTrees[spanningTreeSearchIndex].is_node_root() and
             spanningTrees[spanningTreeSearchIndex].full_broadcast_finished()) {
 
         spanningTrees[spanningTreeSearchIndex].search_for_next_tree(spanningTreeSearchIndex);
         spanningTreeSearchIndex++;
+
         if(spanningTreeSearchIndex >= NUM_OF_TREES) {
             SpanningTree *p = spanningTrees;
-
             district.update_linked_nodes_from_spanningtree(p);
-
             coordinateMsgsSent = district.neighbours_coordinates_inquiry();
             state = BasicNode::COORDINATE_SHARING_STATE;
-
             if(SAVE_STATE){
                 District *dp = &district;
                 saveState.save(dp);
             }
-
         } else {
             spanningTrees[spanningTreeSearchIndex].wake_up();
         }
@@ -261,8 +270,6 @@ void BasicNode::process_spanning_tree_msg(BasicMessage *basicmsg, cMessage *msg)
             coordinateMsgsSent = district.neighbours_coordinates_inquiry();
             state = BasicNode::COORDINATE_SHARING_STATE;
 
-
-
             if(SAVE_STATE){
                 District *dp = &district;
                 EV_FATAL << saveState.save(dp) << "\n";
@@ -294,103 +301,6 @@ std::string BasicNode::parseNodeID(const char* nodeName)
    node_ID.erase(0, pos + delimiter.length());
 
    return node_ID;
-}
-
-void BasicNode::run_simulation(void) {
-
-    int sendTransactionProbability = rand();
-
-    // 0.05 % chance of sending
-    if(sendTransactionProbability < 10000000) {
-        int amountProbability = rand() % 100;
-        double amount = 250;
-
-        if(amountProbability < 5) {
-            amount = 10.00;
-        } else if( amountProbability < 30) {
-            amount = 50.00;
-        } else if( amountProbability < 60) {
-            amount = 130.00;
-        } else {
-            amount = 250.00;
-        }
-
-        int nodeProbability = rand() % 100;
-        int receiver = 0;
-
-        if(nodeProbability < 5) {
-            if(nodeProbability % 2 == 0) {
-                receiver = nodeId - 2;
-            } else {
-                receiver = nodeId + 2;
-            }
-        } else if(nodeProbability < 25) {
-            if(nodeProbability % 2 == 0) {
-                receiver = nodeId - 3;
-            } else {
-                receiver = nodeId + 3;
-            }
-        } else if(nodeProbability < 45) {
-            if(nodeProbability % 2 == 0) {
-                receiver = nodeId - 4;
-            } else {
-                receiver = nodeId + 4;
-            }
-        } else if(nodeProbability < 65) {
-            if(nodeProbability % 2 == 0) {
-                receiver = nodeId - 5;
-            } else {
-                receiver = nodeId + 5;
-            }
-        } else if(nodeProbability < 85) {
-            if(nodeProbability % 2 == 0) {
-                receiver = nodeId - 6;
-            } else {
-                receiver = nodeId + 6;
-            }
-        } else if(nodeProbability < 95) {
-            if(nodeProbability % 2 == 0) {
-                receiver = nodeId - 7;
-            } else {
-                receiver = nodeId + 7;
-            }
-        } else if(nodeProbability < 100) {
-            if(nodeProbability % 2 == 0) {
-                receiver = nodeId - 8;
-            } else {
-                receiver = nodeId + 8;
-            }
-        }
-
-        if(receiver < 0) {
-            receiver = nodeId - receiver;
-        }
-
-        if(receiver > 22) {
-            receiver = receiver - nodeId;
-        }
-
-        if(receiver < 0 or receiver > 22) {
-            return;
-        }
-
-        EV << "Node: " << nodeId << " \nSending Amount: " << amount << " \nReceiver: " << receiver << "\n";
-
-        if(nodeId == receiver) {
-            EV << "Trying to send to self";
-            return;
-        }
-
-        std::string send = paymentChannel.multi_path_send(receiver, amount, 3);
-        EV << "Node: " << nodeId << " sending edge: " << send << "\n";
-
-    }
-
-    if(paymentChannel.get_current_transaction_index() > 1) {
-
-            //EV << "node: " << nodeId << " has transaction string with capacities: " << transaction.capacities_to_string() << " \n delay:" << transaction.delay_to_string() << "\n";
-    }
-
 }
 
 void BasicNode::leaderInitialization(void) {
@@ -437,7 +347,7 @@ void BasicNode::sendTransactionMessages(void) {
         BufferedMessage * bufMsg = paymentChannel.get_message();
 
         BasicMessage * basicmsg = dynamic_cast<BasicMessage*> (bufMsg->get_message());
-        if(bufMsg->get_out_gate_int() < 0) {
+        if(bufMsg->get_out_gate_int() < 0 or bufMsg->get_out_gate_int() > gateSize("out")) {
             EV << "Node: " << nodeId << " tried to send type message: " << basicmsg->getSubType() << "\n";
         }else {
             sendDelayed(bufMsg->get_message(), bufMsg->get_delay(), "out", bufMsg->get_out_gate_int());
@@ -468,7 +378,6 @@ void BasicNode::check_stat_flags(void) {
 }
 
 void BasicNode::finish() {
-
 
     EV << "Node id: " << nodeId << " has run transactions: " << numOfTransEvents << " number of completed: " << stats.transactionsCompleted << " number of failed: " << stats.transactionsFailed << "\n";
 }
